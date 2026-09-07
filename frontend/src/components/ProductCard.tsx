@@ -5,6 +5,7 @@ interface Producto {
   precio: number;
   stock: number;
   imagen: string;
+  categoria: string;
 }
 
 interface ProductCardProps {
