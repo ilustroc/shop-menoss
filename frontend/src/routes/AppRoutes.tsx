@@ -7,6 +7,9 @@ import Carrito from '../pages/Carrito'
 import Pedidos from '../pages/Pedidos'
 import PedidoDetalle from '../pages/PedidoDetalle'
 import NotFound from '../pages/NotFound'
+import OrdersPage from '../pages/OrdersPage'; 
+import OrderDetailPage from '../pages/Detalle-Orden';
+import CheckoutPage from '../pages/CheckoutPage';
 
 function AppRoutes() {
   return (
@@ -18,6 +21,9 @@ function AppRoutes() {
       <Route path="/carrito" element={<Carrito />} />
       <Route path="/pedidos" element={<Pedidos />} />
       <Route path="/pedidos/:id" element={<PedidoDetalle />} />
+      <Route path="/pedidos" element={<OrdersPage />} />
+      <Route path="/pedidos/:id" element={<Detalle-Orden />} />
+      <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
