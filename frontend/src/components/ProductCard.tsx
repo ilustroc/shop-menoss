@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface Producto {
   id: number;
@@ -25,7 +25,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ producto, onAgregar }) => {
         className="card-img-top"
         alt={producto.nombre}
         onError={(e) => {
-          (e.target as HTMLImageElement).src = '/placeholder-producto.png';
+          (e.target as HTMLImageElement).src =
+            "/images/products/placeholder.png";
         }}
       />
       <div className="card-body d-flex flex-column">
@@ -38,8 +39,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ producto, onAgregar }) => {
         <div className="mt-auto">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <strong>S/ {producto.precio.toFixed(2)}</strong>
-            <small className={sinStock ? 'text-danger' : 'text-success'}>
-              {sinStock ? 'Sin stock' : `Stock: ${producto.stock}`}
+            <small className={sinStock ? "text-danger" : "text-success"}>
+              {sinStock ? "Sin stock" : `Stock: ${producto.stock}`}
             </small>
           </div>
           <button
@@ -47,7 +48,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ producto, onAgregar }) => {
             onClick={() => onAgregar(producto)}
             disabled={sinStock}
           >
-            {sinStock ? 'Sin stock' : 'Agregar al carrito'}
+            {sinStock ? "Sin stock" : "Agregar al carrito"}
           </button>
         </div>
       </div>
