@@ -8,7 +8,11 @@ function Header() {
 
           {/* Logo */}
           <Link className="navbar-brand fw-bold fs-4" to="/">
-            Shop Menoss
+            <img
+              src="/images/products/logo_menoss.jpeg"
+              alt="Shop Menoss"
+              height="50"
+            />
           </Link>
 
           {/* Botón hamburguesa */}
