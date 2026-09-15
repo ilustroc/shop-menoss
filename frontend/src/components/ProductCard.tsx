@@ -37,7 +37,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ producto, onAgregar }) => {
 
         <div className="mt-auto">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <strong>${producto.precio.toFixed(2)}</strong>
+            <strong>S/ {producto.precio.toFixed(2)}</strong>
             <small className={sinStock ? 'text-danger' : 'text-success'}>
               {sinStock ? 'Sin stock' : `Stock: ${producto.stock}`}
             </small>
