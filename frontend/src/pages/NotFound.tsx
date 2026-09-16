@@ -66,7 +66,7 @@ function NotFound() {
                 <div className="col-12 col-md-5 bg-primary">
                   <div className="h-100 d-flex flex-column justify-content-center align-items-center text-center p-4 p-md-5">
                     <img
-                      src="/images/products/logo_menoss.jpeg"
+                      src="/images/products/logo_menoss.png"
                       alt="Shop Menoss"
                       className="img-fluid rounded-4 bg-white p-2 mb-4"
                       style={{
