@@ -11,14 +11,13 @@ import NotFound from "../pages/NotFound";
 import Contacto from "../pages/Contacto";
 
 function AppRoutes() {
-  return (
+    return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/productos" element={<Productos />} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Register />} />
       <Route path="/carrito" element={<Carrito />} />
-
       <Route path="/pedidos" element={<Pedidos />} />
       <Route path="/pedidos/:id" element={<PedidoDetalle />} />
       <Route path="/checkout" element={<CheckoutPage />} />
