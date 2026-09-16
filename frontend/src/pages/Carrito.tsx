@@ -106,7 +106,7 @@ function Carrito() {
         >
           <div className="d-flex justify-content-center mb-3">
             <img
-              src="/images/products/logo_menoss.jpeg"
+              src="/images/products/logo_menoss.png"
               alt="Logo de Shop Menoss"
               className="rounded"
               style={{
@@ -187,7 +187,7 @@ function Carrito() {
             </button>
 
             <img
-              src="/images/products/logo_menoss.jpeg"
+              src="/images/products/logo_menoss.png"
               alt="Logo de Shop Menoss"
               className="rounded border"
               style={{
