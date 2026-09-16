@@ -1,15 +1,6 @@
-import React from 'react';
-import ProductCard from './ProductCard';
-
-interface Producto {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  precio: number;
-  stock: number;
-  imagen: string;
-  categoria: string;
-}
+import React from "react";
+import ProductCard from "./ProductCard";
+import type { Producto } from "../types/producto";
 
 interface ProductGridProps {
   productos: Producto[];
