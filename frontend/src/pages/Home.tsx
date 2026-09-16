@@ -78,7 +78,7 @@ function Home() {
               <div className="card border-0 shadow-sm rounded-4">
                 <div className="card-body p-4 p-md-5 text-center">
                   <img
-                    src="/images/products/logo_menoss.jpeg"
+                    src="/images/products/logo_menoss.png"
                     alt="Shop Menoss"
                     className="img-fluid rounded-4 mb-4"
                     style={{

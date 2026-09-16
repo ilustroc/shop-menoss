@@ -12,7 +12,7 @@ function Footer() {
               className="d-inline-flex align-items-center gap-2 text-decoration-none mb-3"
             >
               <img
-                src="/images/products/logo_menoss.jpeg"
+                src="/images/products/logo_menoss.png"
                 alt="Shop Menoss"
                 height="45"
                 className="rounded"

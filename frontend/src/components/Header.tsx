@@ -11,7 +11,7 @@ function Header() {
             to="/"
           >
             <img
-              src="/images/products/logo_menoss.jpeg"
+              src="/images/products/logo_menoss.png"
               alt="Shop Menoss"
               height="48"
               className="d-block"
