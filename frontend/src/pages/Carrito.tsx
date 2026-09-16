@@ -185,7 +185,7 @@ function Carrito() {
             </button>
 
             <img
-              src="/images/products/logo_menoss.png"
+              src="/images/products/logo_menoss.jpeg"
               alt="Logo de Shop Menoss"
               className="rounded border"
               style={{
