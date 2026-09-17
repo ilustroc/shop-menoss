@@ -1,81 +1,43 @@
 // src/pages/Carrito.tsx
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import type { CartItem } from '../types/producto'
+import {
+  leerCarrito,
+  aumentarCantidad,
+  disminuirCantidad,
+  eliminarDelCarrito,
+  vaciarCarrito,
+} from '../services/carritoService'
 
-interface CartItem {
-  id: number
-  nombre: string
-  precio: number
-  cantidad: number
-}
-
-const CART_STORAGE_KEY = 'shop_menoss_cart'
 const IGV_RATE = 0.18
 
-const INITIAL_PRODUCTS: CartItem[] = [
-  { id: 1, nombre: 'Arroz Extra 1 kg', precio: 4.8, cantidad: 2 },
-  { id: 2, nombre: 'Aceite Vegetal 1 L', precio: 8.5, cantidad: 1 },
-  { id: 3, nombre: 'Leche Evaporada', precio: 3.9, cantidad: 3 },
-]
-
 function Carrito() {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY)
+  const [items, setItems] = useState<CartItem[]>(() => leerCarrito())
 
-      if (stored !== null) {
-        const parsed = JSON.parse(stored)
-
-        if (Array.isArray(parsed)) {
-          return parsed as CartItem[]
-        }
-      }
-
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(INITIAL_PRODUCTS))
-      return INITIAL_PRODUCTS
-    } catch {
-      return INITIAL_PRODUCTS
-    }
-  })
-
-  const updateCart = (newItems: CartItem[]) => {
-    setItems(newItems)
-
-    try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(newItems))
-    } catch (error) {
-      console.error('Error al guardar en localStorage:', error)
-    }
+  const actualizarCarrito = (carritoActualizado: CartItem[]) => {
+    setItems(carritoActualizado)
   }
 
   const handleAumentar = (id: number) => {
-    const updated = items.map((item) =>
-      item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
-    )
-
-    updateCart(updated)
+    actualizarCarrito(aumentarCantidad(id))
   }
 
   const handleDisminuir = (id: number) => {
-    const updated = items.map((item) => {
-      if (item.id === id && item.cantidad > 1) {
-        return { ...item, cantidad: item.cantidad - 1 }
-      }
-
-      return item
-    })
-
-    updateCart(updated)
+    actualizarCarrito(disminuirCantidad(id))
   }
 
   const handleEliminar = (id: number) => {
-    const updated = items.filter((item) => item.id !== id)
-    updateCart(updated)
+    actualizarCarrito(eliminarDelCarrito(id))
   }
 
   const handleVaciarCarrito = () => {
-    if (window.confirm('¿Estás seguro de que deseas vaciar todo el carrito?')) {
-      updateCart([])
+    const confirmar = window.confirm(
+      '¿Estás seguro de que deseas vaciar todo el carrito?'
+    )
+
+    if (confirmar) {
+      actualizarCarrito(vaciarCarrito())
     }
   }
 
@@ -173,7 +135,8 @@ function Carrito() {
             </div>
 
             <p className="text-muted small mb-0">
-              Gestiona las cantidades y revisa el resumen estimado de tus abarrotes
+              Gestiona las cantidades y revisa el resumen estimado de tus
+              abarrotes.
             </p>
           </div>
 
@@ -391,21 +354,19 @@ function Carrito() {
                 </div>
               </div>
 
-              <button
-                type="button"
+              <Link
+                to="/checkout"
                 className="btn btn-primary w-100 py-2 mb-2 fw-medium shadow-sm"
-                disabled
-                aria-disabled="true"
               >
                 Continuar con el pedido
-              </button>
+              </Link>
 
               <div className="text-center">
                 <span
                   className="text-muted d-block small"
                   style={{ fontSize: '0.78rem' }}
                 >
-                  El registro y pago de pedidos se habilitará en la siguiente fase.
+                  Revisa tus productos antes de continuar con el pedido.
                 </span>
               </div>
             </div>
