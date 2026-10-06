@@ -1,4 +1,5 @@
 import type { CartItem } from '../types/producto'
+import { PRODUCTOS_MOCK } from '../data/productosMock'
 
 const CART_KEY = 'shop_menoss_cart'
 
@@ -22,40 +23,68 @@ function guardarCarrito(items: CartItem[]): void {
   localStorage.setItem(CART_KEY, JSON.stringify(items))
 }
 
+function obtenerStockDisponible(id: number): number {
+  const producto = PRODUCTOS_MOCK.find((item) => item.id === id)
+  return producto?.stock ?? 0
+}
+
 export function agregarAlCarrito(producto: {
   id: number
   nombre: string
   precio: number
 }): CartItem[] {
   const carrito = leerCarrito()
-  const productoExistente = carrito.find((item) => item.id === producto.id)
+  const productoOriginal = PRODUCTOS_MOCK.find(
+    (item) => item.id === producto.id
+  )
 
-  let carritoActualizado: CartItem[]
+  if (!productoOriginal || productoOriginal.stock <= 0) {
+    return carrito
+  }
+
+  const productoExistente = carrito.find(
+    (item) => item.id === producto.id
+  )
 
   if (productoExistente) {
-    carritoActualizado = carrito.map((item) =>
+    if (productoExistente.cantidad >= productoOriginal.stock) {
+      return carrito
+    }
+
+    const carritoActualizado = carrito.map((item) =>
       item.id === producto.id
         ? { ...item, cantidad: item.cantidad + 1 }
         : item
     )
-  } else {
-    carritoActualizado = [
-      ...carrito,
-      {
-        id: producto.id,
-        nombre: producto.nombre,
-        precio: producto.precio,
-        cantidad: 1,
-      },
-    ]
+
+    guardarCarrito(carritoActualizado)
+    return carritoActualizado
   }
+
+  const carritoActualizado: CartItem[] = [
+    ...carrito,
+    {
+      id: productoOriginal.id,
+      nombre: productoOriginal.nombre,
+      precio: productoOriginal.precio,
+      cantidad: 1,
+    },
+  ]
 
   guardarCarrito(carritoActualizado)
   return carritoActualizado
 }
 
 export function aumentarCantidad(id: number): CartItem[] {
-  const carritoActualizado = leerCarrito().map((item) =>
+  const carrito = leerCarrito()
+  const stockDisponible = obtenerStockDisponible(id)
+  const productoActual = carrito.find((item) => item.id === id)
+
+  if (!productoActual || productoActual.cantidad >= stockDisponible) {
+    return carrito
+  }
+
+  const carritoActualizado = carrito.map((item) =>
     item.id === id
       ? { ...item, cantidad: item.cantidad + 1 }
       : item
@@ -88,4 +117,8 @@ export function eliminarDelCarrito(id: number): CartItem[] {
 export function vaciarCarrito(): CartItem[] {
   guardarCarrito([])
   return []
+}
+
+export function obtenerStock(id: number): number {
+  return obtenerStockDisponible(id)
 }

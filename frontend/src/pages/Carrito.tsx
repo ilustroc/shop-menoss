@@ -8,6 +8,7 @@ import {
   disminuirCantidad,
   eliminarDelCarrito,
   vaciarCarrito,
+  obtenerStock,
 } from '../services/carritoService'
 
 const IGV_RATE = 0.18
@@ -210,7 +211,8 @@ function Carrito() {
                 <tbody>
                   {items.map((item) => {
                     const subtotal = item.precio * item.cantidad
-
+                    const stockDisponible = obtenerStock(item.id)
+                    const limiteStockAlcanzado = item.cantidad >= stockDisponible
                     return (
                       <tr key={item.id}>
                         <td className="ps-3 ps-md-4 py-3">
@@ -255,11 +257,18 @@ function Carrito() {
                               type="button"
                               className="btn btn-light border-0 px-2 fw-bold text-primary"
                               onClick={() => handleAumentar(item.id)}
+                              disabled={limiteStockAlcanzado}
                               aria-label="Aumentar cantidad"
-                            >
-                              +
+                              >
+                                +
                             </button>
                           </div>
+                            {limiteStockAlcanzado && (
+                            <small className="d-block text-danger mt-1">
+                             Límite de stock alcanzado
+                                </small>
+                              )}
+
                         </td>
 
                         <td className="text-end fw-bold text-primary py-3">
