@@ -91,12 +91,6 @@ function Register() {
 
     setMensaje('Formulario validado correctamente.')
 
-    console.log({
-      nombre: nombreLimpio,
-      apellido: apellidoLimpio,
-      correo: correoLimpio,
-      password,
-    })
   }
 
   return (
