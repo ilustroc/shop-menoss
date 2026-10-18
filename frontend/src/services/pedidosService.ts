@@ -1,38 +1,39 @@
-
 // src/services/pedidosService.ts
 //
 // Módulo: feature/orders-ui (Integrante 4)
 //
-// El backend todavía no expone endpoints de pedidos (com.shopmenoss.model.Order
-// está vacío y no hay OrderController), así que este servicio simula el
-// historial de pedidos usando localStorage con datos ficticios.
+// El backend todavía no expone los endpoints de pedidos (Pedido.java y
+// DetallePedido.java aún no están implementados), así que este servicio
+// simula el historial con localStorage y datos ficticios.
 //
-// Cuando el backend tenga listo /api/pedidos (o /api/orders), esta es la
-// única capa que debería cambiar: reemplazar las funciones internas por
-// llamadas con `api` (ver services/api.ts), manteniendo la misma firma
-// pública (getPedidos, getPedidoById, crearPedido) para no tocar las
-// páginas que ya consumen este servicio.
+// Cuando feature/pedidos tenga listo /api/pedidos, esta es la única capa
+// que debería cambiar: reemplazar las funciones internas por llamadas con
+// `api` (ver services/api.ts) manteniendo la misma firma pública
+// (getPedidos, getPedidoById, crearPedido) para no tocar las páginas.
+//
+//   GET  /api/pedidos       -> getPedidos()
+//   GET  /api/pedidos/{id}  -> getPedidoById(id)
+//   POST /api/pedidos       -> crearPedido(datos)
 //
 // import api from './api'
 
-import type { DatosCompra, Pedido, DetallePedido, EstadoPedido } from '../types/pedido';
+import { leerCarrito, vaciarCarrito } from './carritoService';
+import type { CartItem } from '../types/producto';
+import type {
+  DatosCompra,
+  DetallePedido,
+  EstadoPedido,
+  MetodoPago,
+  Pedido,
+} from '../types/pedido';
 
 const PEDIDOS_STORAGE_KEY = 'shop_menoss_pedidos';
-const IGV_RATE = 0.18;
-
-const CART_STORAGE_KEY = 'shop_menoss_cart';
-
-interface CartItemCompartido {
-  id: number;
-  nombre: string;
-  precio: number;
-  cantidad: number;
-}
+export const IGV_RATE = 0.18;
 
 export const ESTADO_LABELS: Record<EstadoPedido, string> = {
   pendiente: 'Pendiente',
   confirmado: 'Confirmado',
-  en_camino: 'En camino',
+  preparando: 'Preparando',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
 };
@@ -40,22 +41,38 @@ export const ESTADO_LABELS: Record<EstadoPedido, string> = {
 export const ESTADO_BADGE_CLASS: Record<EstadoPedido, string> = {
   pendiente: 'bg-secondary',
   confirmado: 'bg-info text-dark',
-  en_camino: 'bg-warning text-dark',
+  preparando: 'bg-warning text-dark',
   entregado: 'bg-success',
   cancelado: 'bg-danger',
 };
 
-// Pasos del "estado del pedido" que se muestran en el detalle.
+export const ESTADO_DESCRIPCION: Record<EstadoPedido, string> = {
+  pendiente: 'Recibimos tu pedido y está esperando la confirmación de la tienda.',
+  confirmado: 'La tienda confirmó tu pedido.',
+  preparando: 'Estamos preparando tus productos.',
+  entregado: 'Tu pedido fue entregado. ¡Gracias por comprar en Shop Menoss!',
+  cancelado: 'Este pedido fue cancelado.',
+};
+
+/** Pasos del flujo normal que se muestran en el detalle (cancelado va aparte). */
 export const PASOS_ESTADO: EstadoPedido[] = [
   'pendiente',
   'confirmado',
-  'en_camino',
+  'preparando',
   'entregado',
 ];
 
-function calcularTotales(detalles: DetallePedido[]) {
-  const subtotal = detalles.reduce(
-    (acc, item) => acc + item.precioUnitario * item.cantidad,
+export const METODO_PAGO_LABELS: Record<MetodoPago, string> = {
+  efectivo: 'Efectivo contra entrega',
+  tarjeta: 'Tarjeta de crédito / débito',
+  transferencia: 'Transferencia bancaria',
+};
+
+export function calcularTotales(
+  items: { precio: number; cantidad: number }[]
+) {
+  const subtotal = items.reduce(
+    (acc, item) => acc + item.precio * item.cantidad,
     0
   );
   const igv = subtotal * IGV_RATE;
@@ -64,12 +81,21 @@ function calcularTotales(detalles: DetallePedido[]) {
   return { subtotal, igv, total };
 }
 
-function generarId(): string {
-  const numero = Math.floor(1000 + Math.random() * 9000);
-  return `${numero}`;
+function totalesDeDetalles(detalles: DetallePedido[]) {
+  return calcularTotales(
+    detalles.map((d) => ({ precio: d.precioUnitario, cantidad: d.cantidad }))
+  );
 }
 
-// Datos ficticios 
+function generarId(existentes: Pedido[]): string {
+  let id: string;
+  do {
+    id = `${Math.floor(1000 + Math.random() * 9000)}`;
+  } while (existentes.some((p) => p.id === id));
+  return id;
+}
+
+// Datos ficticios iniciales
 function pedidosFicticios(): Pedido[] {
   const detallesPedido1024: DetallePedido[] = [
     { productoId: 1, nombre: 'Arroz Extra 1 kg', precioUnitario: 4.8, cantidad: 3 },
@@ -90,28 +116,42 @@ function pedidosFicticios(): Pedido[] {
       direccion: 'Av. Siempre Viva 123, Depto 4B',
       referencia: 'Casa azul, portón negro',
       metodoPago: 'tarjeta',
+      tarjetaUltimos4: '4242',
       detalles: detallesPedido1024,
-      ...calcularTotales(detallesPedido1024),
+      ...totalesDeDetalles(detallesPedido1024),
     },
     {
       id: '1025',
       fecha: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      estado: 'en_camino',
+      estado: 'preparando',
       direccion: 'Jr. Los Olivos 456',
       metodoPago: 'efectivo',
       detalles: detallesPedido1025,
-      ...calcularTotales(detallesPedido1025),
+      ...totalesDeDetalles(detallesPedido1025),
     },
   ];
+}
+
+const ESTADOS_VALIDOS = Object.keys(ESTADO_LABELS) as EstadoPedido[];
+
+/** Corrige pedidos guardados con estados antiguos (ej. 'en_camino'). */
+function normalizarEstado(estado: string): EstadoPedido {
+  if (estado === 'en_camino') return 'preparando';
+  return ESTADOS_VALIDOS.includes(estado as EstadoPedido)
+    ? (estado as EstadoPedido)
+    : 'pendiente';
 }
 
 function leerPedidos(): Pedido[] {
   try {
     const stored = localStorage.getItem(PEDIDOS_STORAGE_KEY);
     if (stored !== null) {
-      const parsed = JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
       if (Array.isArray(parsed)) {
-        return parsed as Pedido[];
+        return (parsed as Pedido[]).map((p) => ({
+          ...p,
+          estado: normalizarEstado(p.estado),
+        }));
       }
     }
     const iniciales = pedidosFicticios();
@@ -142,29 +182,18 @@ export function getPedidoById(id: string): Pedido | undefined {
   return leerPedidos().find((pedido) => pedido.id === id);
 }
 
-/** Lee el carrito actual */
-export function getCarritoActual(): CartItemCompartido[] {
-  try {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) ? (parsed as CartItemCompartido[]) : [];
-  } catch {
-    return [];
-  }
+/** Lee el carrito actual (reutiliza carritoService de feature/cart-ui). */
+export function getCarritoActual(): CartItem[] {
+  return leerCarrito();
 }
 
-/** Vacía el carrito luego de confirmar un pedido. */
-function vaciarCarrito() {
-  try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([]));
-  } catch (error) {
-    console.error('Error al vaciar el carrito:', error);
-  }
-}
-
-/** Crea un nuevo pedido a partir del carrito actual */
+/** Crea un nuevo pedido a partir del carrito actual y vacía el carrito. */
 export function crearPedido(datos: DatosCompra): Pedido {
-  const carrito = getCarritoActual();
+  const carrito = leerCarrito();
+
+  if (carrito.length === 0) {
+    throw new Error('El carrito está vacío.');
+  }
 
   const detalles: DetallePedido[] = carrito.map((item) => ({
     productoId: item.id,
@@ -173,18 +202,24 @@ export function crearPedido(datos: DatosCompra): Pedido {
     cantidad: item.cantidad,
   }));
 
+  const pedidos = leerPedidos();
+
   const nuevoPedido: Pedido = {
-    id: generarId(),
+    id: generarId(pedidos),
     fecha: new Date().toISOString(),
-    estado: 'confirmado',
-    direccion: datos.direccion,
-    referencia: datos.referencia,
+    // Todo pedido nace PENDIENTE; el administrador lo confirma (feature/admin-pedidos).
+    estado: 'pendiente',
+    direccion: datos.direccion.trim(),
+    referencia: datos.referencia?.trim() || undefined,
     metodoPago: datos.metodoPago,
+    tarjetaUltimos4:
+      datos.metodoPago === 'tarjeta' && datos.tarjeta
+        ? datos.tarjeta.numero.replace(/\D/g, '').slice(-4)
+        : undefined,
     detalles,
-    ...calcularTotales(detalles),
+    ...totalesDeDetalles(detalles),
   };
 
-  const pedidos = leerPedidos();
   pedidos.push(nuevoPedido);
   guardarPedidos(pedidos);
   vaciarCarrito();
