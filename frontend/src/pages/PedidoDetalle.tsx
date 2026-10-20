@@ -1,11 +1,77 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { getPedidoById, ESTADO_LABELS, ESTADO_BADGE_CLASS, formatPrecio, formatFecha } from '../services/pedidosService';
-import type { Pedido } from '../types/pedido';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import {
+  getPedidoById,
+  ESTADO_LABELS,
+  ESTADO_BADGE_CLASS,
+  ESTADO_DESCRIPCION,
+  METODO_PAGO_LABELS,
+  PASOS_ESTADO,
+  formatPrecio,
+  formatFecha,
+} from '../services/pedidosService';
+import type { EstadoPedido, Pedido } from '../types/pedido';
+
+/** Línea de progreso del estado del pedido. */
+function SeguimientoEstado({ estado }: { estado: EstadoPedido }) {
+  if (estado === 'cancelado') {
+    return (
+      <div className="alert alert-danger mb-0">
+        <strong>Pedido cancelado.</strong> {ESTADO_DESCRIPCION.cancelado}
+      </div>
+    );
+  }
+
+  const indiceActual = PASOS_ESTADO.indexOf(estado);
+
+  return (
+    <div>
+      <ol className="list-unstyled d-flex justify-content-between position-relative mb-3">
+        {PASOS_ESTADO.map((paso, indice) => {
+          const completado = indice <= indiceActual;
+          return (
+            <li key={paso} className="text-center flex-fill position-relative">
+              {indice > 0 && (
+                <span
+                  className={`position-absolute top-0 translate-middle-y ${
+                    indice <= indiceActual ? 'bg-success' : 'bg-secondary-subtle'
+                  }`}
+                  style={{ height: 4, left: '-50%', right: '50%', marginTop: 16 }}
+                  aria-hidden="true"
+                />
+              )}
+              <span
+                className={`d-inline-flex align-items-center justify-content-center rounded-circle fw-bold position-relative ${
+                  completado ? 'bg-success text-white' : 'bg-light text-secondary border'
+                }`}
+                style={{ width: 32, height: 32, zIndex: 1 }}
+                aria-current={indice === indiceActual ? 'step' : undefined}
+              >
+                {indice < indiceActual ? '✓' : indice + 1}
+              </span>
+              <span
+                className={`d-block small mt-2 ${
+                  indice === indiceActual ? 'fw-bold text-dark' : 'text-muted'
+                }`}
+              >
+                {ESTADO_LABELS[paso]}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="small text-secondary mb-0 text-center">{ESTADO_DESCRIPCION[estado]}</p>
+    </div>
+  );
+}
 
 function PedidoDetalle() {
   const { id } = useParams<{ id: string }>();
-  
+  const location = useLocation();
+  const recienCreado = Boolean(
+    (location.state as { recienCreado?: boolean } | null)?.recienCreado
+  );
+
   // Inicializamos el estado directamente
   const [pedido] = useState<Pedido | undefined>(() => {
     return id ? getPedidoById(id) : undefined;
@@ -17,7 +83,7 @@ function PedidoDetalle() {
         <Link to="/pedidos" className="btn btn-outline-secondary btn-sm mb-4 px-3 rounded-pill">
           ← Volver al Historial
         </Link>
-        <div className="alert alert-custom bg-danger-subtle text-danger border border-danger-subtle text-center p-4 rounded-3 shadow-sm">
+        <div className="alert bg-danger-subtle text-danger border border-danger-subtle text-center p-4 rounded-3 shadow-sm">
           <h4 className="alert-heading fw-bold mb-2">¡Pedido no encontrado!</h4>
           <p className="mb-0">El identificador #{id} no coincide con ningún registro en nuestro sistema.</p>
         </div>
@@ -27,9 +93,15 @@ function PedidoDetalle() {
 
   return (
     <div className="container mt-4 mb-5">
+      {recienCreado && (
+        <div className="alert alert-success" role="status">
+          <strong>¡Pedido #{pedido.id} registrado con éxito!</strong> Gracias por tu compra.
+        </div>
+      )}
+
       {/* Botón de retorno */}
       <div className="mb-4">
-        <Link to="/pedidos" className="btn btn-light border btn-sm text-secondary px-3 py-2 rounded-3 shadow-sm hover-shadow">
+        <Link to="/pedidos" className="btn btn-light border btn-sm text-secondary px-3 py-2 rounded-3 shadow-sm">
           ← Volver a mis pedidos
         </Link>
       </div>
@@ -37,8 +109,8 @@ function PedidoDetalle() {
       {/* Encabezado principal */}
       <div className="bg-white border rounded-4 p-4 mb-4 shadow-sm d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
         <div>
-          <span className="text-primary text-uppercase fs-7 fw-bold tracking-wider mb-1 d-block">Resumen de Compra</span>
-          <h2 className="fw-black text-dark mb-0 display-6" style={{ fontSize: '1.75rem' }}>
+          <span className="text-primary text-uppercase small fw-bold mb-1 d-block">Resumen de Compra</span>
+          <h2 className="fw-bold text-dark mb-0 display-6" style={{ fontSize: '1.75rem' }}>
             Pedido <span className="text-secondary font-monospace">#{pedido.id}</span>
           </h2>
           <p className="text-muted small mb-0 mt-1">
@@ -46,10 +118,16 @@ function PedidoDetalle() {
           </p>
         </div>
         <div>
-          <span className={`badge ${ESTADO_BADGE_CLASS[pedido.estado]} px-4 py-2.5 fs-6 rounded-pill shadow-xs border`}>
+          <span className={`badge ${ESTADO_BADGE_CLASS[pedido.estado]} px-4 py-2 fs-6 rounded-pill border`}>
             ● {ESTADO_LABELS[pedido.estado]}
           </span>
         </div>
+      </div>
+
+      {/* Estado del pedido */}
+      <div className="bg-white border rounded-4 p-4 mb-4 shadow-sm">
+        <h5 className="fs-6 fw-bold text-dark mb-4">Estado del pedido</h5>
+        <SeguimientoEstado estado={pedido.estado} />
       </div>
 
       <div className="row g-4">
@@ -62,7 +140,7 @@ function PedidoDetalle() {
             <div className="card-body p-4 d-flex flex-column justify-content-between">
               <div>
                 <div className="mb-4">
-                  <label className="text-muted text-uppercase tracking-wider small fw-bold d-block mb-1">Dirección de Envío</label>
+                  <label className="text-muted text-uppercase small fw-bold d-block mb-1">Dirección de Envío</label>
                   <p className="text-dark fw-medium bg-light p-3 rounded-3 border mb-0">
                     {pedido.direccion}
                   </p>
@@ -70,7 +148,7 @@ function PedidoDetalle() {
 
                 {pedido.referencia && (
                   <div className="mb-4">
-                    <label className="text-muted text-uppercase tracking-wider small fw-bold d-block mb-1">Indicaciones / Referencia</label>
+                    <label className="text-muted text-uppercase small fw-bold d-block mb-1">Indicaciones / Referencia</label>
                     <p className="text-secondary small bg-light p-3 rounded-3 border mb-0">
                       {pedido.referencia}
                     </p>
@@ -79,10 +157,11 @@ function PedidoDetalle() {
               </div>
 
               <div className="border-top pt-4 mt-2">
-                <label className="text-muted text-uppercase tracking-wider small fw-bold d-block mb-1">Método de Pago Seleccionado</label>
+                <label className="text-muted text-uppercase small fw-bold d-block mb-1">Método de Pago Seleccionado</label>
                 <div className="d-flex align-items-center gap-2 mt-2">
-                  <span className="badge bg-light text-dark border px-3 py-2 text-capitalize fs-7 rounded-3">
-                    💳 {pedido.metodoPago}
+                  <span className="badge bg-light text-dark border px-3 py-2 rounded-3">
+                    {METODO_PAGO_LABELS[pedido.metodoPago]}
+                    {pedido.tarjetaUltimos4 && ` •••• ${pedido.tarjetaUltimos4}`}
                   </span>
                 </div>
               </div>
@@ -99,7 +178,7 @@ function PedidoDetalle() {
             <div className="card-body p-0">
               <div className="table-responsive">
                 <table className="table align-middle mb-0 table-hover">
-                  <thead className="table-light text-secondary text-uppercase fs-7 border-bottom">
+                  <thead className="table-light text-secondary text-uppercase small border-bottom">
                     <tr>
                       <th className="py-3 px-4" style={{ width: '45%' }}>Producto</th>
                       <th className="py-3 text-center" style={{ width: '15%' }}>Cantidad</th>
@@ -115,7 +194,7 @@ function PedidoDetalle() {
                           <span className="text-muted small">ID Ref: #{detalle.productoId}</span>
                         </td>
                         <td className="py-3 text-center">
-                          <span className="badge bg-light text-dark border px-3 py-1.5 rounded-3 fw-bold">
+                          <span className="badge bg-light text-dark border px-3 py-1 rounded-3 fw-bold">
                             {detalle.cantidad}
                           </span>
                         </td>
@@ -144,8 +223,8 @@ function PedidoDetalle() {
                     <span className="text-dark fw-medium">{formatPrecio(pedido.igv)}</span>
                   </div>
                   <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-dark fw-bold fs-5">Total Facturado:</span>
-                    <span className="text-primary fw-black fs-4 font-monospace">
+                    <span className="text-dark fw-bold fs-5 text-nowrap me-3">Total facturado:</span>
+                    <span className="text-primary fw-bold fs-4 font-monospace text-nowrap">
                       {formatPrecio(pedido.total)}
                     </span>
                   </div>

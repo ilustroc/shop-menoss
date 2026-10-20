@@ -44,10 +44,7 @@ function Login() {
       return
     }
 
-    console.log({
-      correo: correoLimpio,
-      password,
-    })
+// Más adelante enviaremos estos datos al backend.
 
     // Más adelante enviaremos estos datos al backend.
   }
