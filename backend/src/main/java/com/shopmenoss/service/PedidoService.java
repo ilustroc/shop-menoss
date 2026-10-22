@@ -19,7 +19,6 @@ import com.shopmenoss.model.Pedido;
 import com.shopmenoss.model.Producto;
 import com.shopmenoss.repository.DetallePedidoRepository;
 import com.shopmenoss.repository.PedidoRepository;
-import com.shopmenoss.repository.ProductoRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -30,16 +29,16 @@ public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final DetallePedidoRepository detallePedidoRepository;
-    private final ProductoRepository productoRepository;
+    private final InventarioService inventarioService;
 
     public PedidoService(
             PedidoRepository pedidoRepository,
             DetallePedidoRepository detallePedidoRepository,
-            ProductoRepository productoRepository
+            InventarioService inventarioService
     ) {
         this.pedidoRepository = pedidoRepository;
         this.detallePedidoRepository = detallePedidoRepository;
-        this.productoRepository = productoRepository;
+        this.inventarioService = inventarioService;
     }
 
     @Transactional
@@ -54,19 +53,11 @@ public class PedidoService {
         List<DetallePedido> detalles = new ArrayList<>();
 
         for (DetallePedidoRequest detalleRequest : request.getDetalles()) {
-            Producto producto = productoRepository.findById(detalleRequest.getProductoId())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "Producto no encontrado: " + detalleRequest.getProductoId()
-                    ));
-
-            if (producto.getStock() < detalleRequest.getCantidad()) {
-                throw new IllegalStateException(
-                        "Stock insuficiente para el producto: " + producto.getNombre()
-                );
-            }
-
-            producto.setStock(producto.getStock() - detalleRequest.getCantidad());
-            productoRepository.save(producto);
+            // La validacion y el descuento quedan centralizados en InventarioService.
+            // La transaccion del pedido revierte los descuentos si ocurre un error.
+            Producto producto = inventarioService.descontarStock(
+                    detalleRequest.getProductoId(), detalleRequest.getCantidad()
+            );
 
             BigDecimal precioUnitario = producto.getPrecio();
             BigDecimal subtotalDetalle = precioUnitario.multiply(
