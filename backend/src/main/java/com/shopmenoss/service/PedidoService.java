@@ -91,6 +91,7 @@ public class PedidoService {
         return construirResponse(pedidoGuardado, detallesGuardados);
     }
 
+    @Transactional(readOnly = true)
     public List<PedidoResponse> listarPedidos() {
         List<Pedido> pedidos = pedidoRepository.findAll();
         List<PedidoResponse> respuesta = new ArrayList<>();
@@ -103,6 +104,7 @@ public class PedidoService {
         return respuesta;
     }
 
+    @Transactional(readOnly = true)
     public PedidoResponse obtenerPedido(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Pedido no encontrado: " + id));
