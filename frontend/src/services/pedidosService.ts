@@ -15,7 +15,7 @@
 //   GET  /api/pedidos/{id}  -> getPedidoById(id)
 //   POST /api/pedidos       -> crearPedido(datos)
 //
-// import api from './api'
+import api from './api';
 
 import { leerCarrito, vaciarCarrito } from './carritoService';
 import type { CartItem } from '../types/producto';
@@ -168,6 +168,40 @@ function guardarPedidos(pedidos: Pedido[]) {
   } catch (error) {
     console.error('Error al guardar pedidos en localStorage:', error);
   }
+}
+
+interface PedidoBackend {
+  id: number;
+  fechaCreacion: string;
+  estado: EstadoPedido;
+  direccion: string;
+  referencia?: string;
+  metodoPago: MetodoPago;
+  subtotal: number;
+  envio: number;
+  total: number;
+  detalles: {
+    productoId: number;
+    nombre: string;
+    precioUnitario: number;
+    cantidad: number;
+  }[];
+}
+
+function mapearPedidoBackend(pedido: PedidoBackend): Pedido {
+  return {
+    id: String(pedido.id),
+    fecha: pedido.fechaCreacion,
+    estado: pedido.estado,
+    direccion: pedido.direccion,
+    referencia: pedido.referencia,
+    metodoPago: pedido.metodoPago,
+    detalles: pedido.detalles,
+    subtotal: pedido.subtotal,
+    envio: pedido.envio,
+    igv: 0,
+    total: pedido.total,
+  };
 }
 
 /** Devuelve el historial de pedidos, del más reciente al más antiguo. */
