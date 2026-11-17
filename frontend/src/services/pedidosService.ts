@@ -15,6 +15,7 @@
 //   GET  /api/pedidos/{id}  -> getPedidoById(id)
 //   POST /api/pedidos       -> crearPedido(datos)
 //
+import api from './api';
 import { leerCarrito, vaciarCarrito } from './carritoService';
 import type { CartItem } from '../types/producto';
 import type {
@@ -205,10 +206,18 @@ export function mapearPedidoBackend(pedido: PedidoBackend): Pedido {
 }
 
 /** Devuelve el historial de pedidos, del más reciente al más antiguo. */
-export function getPedidos(): Pedido[] {
-  return [...leerPedidos()].sort(
-    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-  );
+export async function getPedidos(): Promise<Pedido[]> {
+  try {
+    const { data } = await api.get<PedidoBackend[]>('/pedidos');
+    return data
+      .map(mapearPedidoBackend)
+      .sort(
+        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+      );
+  } catch (error) {
+    console.error('Error al obtener pedidos:', error);
+    return leerPedidos();
+  }
 }
 
 /** Busca un pedido por id. Devuelve undefined si no existe. */
