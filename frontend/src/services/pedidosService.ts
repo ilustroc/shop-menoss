@@ -221,8 +221,18 @@ export async function getPedidos(): Promise<Pedido[]> {
 }
 
 /** Busca un pedido por id. Devuelve undefined si no existe. */
-export function getPedidoById(id: string): Pedido | undefined {
+function getPedidoByIdLocal(id: string): Pedido | undefined {
   return leerPedidos().find((pedido) => pedido.id === id);
+}
+
+export async function getPedidoById(id: string): Promise<Pedido | undefined> {
+  try {
+    const { data } = await api.get<PedidoBackend>(`/pedidos/${id}`);
+    return mapearPedidoBackend(data);
+  } catch (error) {
+    console.error('Error al obtener pedido:', error);
+    return getPedidoByIdLocal(id);
+  }
 }
 
 /** Lee el carrito actual (reutiliza carritoService de feature/cart-ui). */
