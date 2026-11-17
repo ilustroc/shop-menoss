@@ -15,8 +15,6 @@
 //   GET  /api/pedidos/{id}  -> getPedidoById(id)
 //   POST /api/pedidos       -> crearPedido(datos)
 //
-import api from './api';
-
 import { leerCarrito, vaciarCarrito } from './carritoService';
 import type { CartItem } from '../types/producto';
 import type {
@@ -119,6 +117,7 @@ function pedidosFicticios(): Pedido[] {
       tarjetaUltimos4: '4242',
       detalles: detallesPedido1024,
       ...totalesDeDetalles(detallesPedido1024),
+      envio: 0,
     },
     {
       id: '1025',
@@ -128,6 +127,7 @@ function pedidosFicticios(): Pedido[] {
       metodoPago: 'efectivo',
       detalles: detallesPedido1025,
       ...totalesDeDetalles(detallesPedido1025),
+      envio: 0,
     },
   ];
 }
@@ -188,7 +188,7 @@ interface PedidoBackend {
   }[];
 }
 
-function mapearPedidoBackend(pedido: PedidoBackend): Pedido {
+export function mapearPedidoBackend(pedido: PedidoBackend): Pedido {
   return {
     id: String(pedido.id),
     fecha: pedido.fechaCreacion,
@@ -252,6 +252,7 @@ export function crearPedido(datos: DatosCompra): Pedido {
         : undefined,
     detalles,
     ...totalesDeDetalles(detalles),
+    envio: 0,
   };
 
   pedidos.push(nuevoPedido);
