@@ -86,14 +86,6 @@ function totalesDeDetalles(detalles: DetallePedido[]) {
   );
 }
 
-function generarId(existentes: Pedido[]): string {
-  let id: string;
-  do {
-    id = `${Math.floor(1000 + Math.random() * 9000)}`;
-  } while (existentes.some((p) => p.id === id));
-  return id;
-}
-
 // Datos ficticios iniciales
 function pedidosFicticios(): Pedido[] {
   const detallesPedido1024: DetallePedido[] = [
@@ -137,9 +129,10 @@ const ESTADOS_VALIDOS = Object.keys(ESTADO_LABELS) as EstadoPedido[];
 
 /** Corrige pedidos guardados con estados antiguos (ej. 'en_camino'). */
 function normalizarEstado(estado: string): EstadoPedido {
-  if (estado === 'en_camino') return 'preparando';
-  return ESTADOS_VALIDOS.includes(estado as EstadoPedido)
-    ? (estado as EstadoPedido)
+  const estadoNormalizado = estado.toLowerCase();
+  if (estadoNormalizado === 'en_camino') return 'preparando';
+  return ESTADOS_VALIDOS.includes(estadoNormalizado as EstadoPedido)
+    ? (estadoNormalizado as EstadoPedido)
     : 'pendiente';
 }
 
@@ -163,41 +156,51 @@ function leerPedidos(): Pedido[] {
   }
 }
 
-function guardarPedidos(pedidos: Pedido[]) {
-  try {
-    localStorage.setItem(PEDIDOS_STORAGE_KEY, JSON.stringify(pedidos));
-  } catch (error) {
-    console.error('Error al guardar pedidos en localStorage:', error);
-  }
-}
-
 interface PedidoBackend {
   id: number;
   fechaCreacion: string;
-  estado: EstadoPedido;
+  estado: string;
   direccion: string;
   referencia?: string;
-  metodoPago: MetodoPago;
+  metodoPago: string;
   subtotal: number;
   envio: number;
   total: number;
   detalles: {
     productoId: number;
-    nombre: string;
+    nombreProducto: string;
     precioUnitario: number;
     cantidad: number;
   }[];
+}
+
+function normalizarMetodoPago(metodoPago: string): MetodoPago {
+  const metodoNormalizado = metodoPago.toLowerCase();
+  if (
+    metodoNormalizado === 'efectivo' ||
+    metodoNormalizado === 'tarjeta' ||
+    metodoNormalizado === 'transferencia'
+  ) {
+    return metodoNormalizado;
+  }
+
+  throw new Error(`Método de pago no soportado: ${metodoPago}`);
 }
 
 export function mapearPedidoBackend(pedido: PedidoBackend): Pedido {
   return {
     id: String(pedido.id),
     fecha: pedido.fechaCreacion,
-    estado: pedido.estado,
+    estado: normalizarEstado(pedido.estado),
     direccion: pedido.direccion,
     referencia: pedido.referencia,
-    metodoPago: pedido.metodoPago,
-    detalles: pedido.detalles,
+    metodoPago: normalizarMetodoPago(pedido.metodoPago),
+    detalles: pedido.detalles.map((detalle) => ({
+      productoId: detalle.productoId,
+      nombre: detalle.nombreProducto,
+      precioUnitario: detalle.precioUnitario,
+      cantidad: detalle.cantidad,
+    })),
     subtotal: pedido.subtotal,
     envio: pedido.envio,
     igv: 0,
@@ -241,44 +244,31 @@ export function getCarritoActual(): CartItem[] {
 }
 
 /** Crea un nuevo pedido a partir del carrito actual y vacía el carrito. */
-export function crearPedido(datos: DatosCompra): Pedido {
+export async function crearPedido(datos: DatosCompra): Promise<Pedido> {
   const carrito = leerCarrito();
 
   if (carrito.length === 0) {
     throw new Error('El carrito está vacío.');
   }
 
-  const detalles: DetallePedido[] = carrito.map((item) => ({
-    productoId: item.id,
-    nombre: item.nombre,
-    precioUnitario: item.precio,
-    cantidad: item.cantidad,
-  }));
+  try {
+    const { data } = await api.post<PedidoBackend>('/pedidos', {
+      direccion: datos.direccion.trim(),
+      referencia: datos.referencia?.trim() || undefined,
+      metodoPago: datos.metodoPago.toUpperCase(),
+      detalles: carrito.map((item) => ({
+        productoId: item.id,
+        cantidad: item.cantidad,
+      })),
+    });
 
-  const pedidos = leerPedidos();
-
-  const nuevoPedido: Pedido = {
-    id: generarId(pedidos),
-    fecha: new Date().toISOString(),
-    // Todo pedido nace PENDIENTE; el administrador lo confirma (feature/admin-pedidos).
-    estado: 'pendiente',
-    direccion: datos.direccion.trim(),
-    referencia: datos.referencia?.trim() || undefined,
-    metodoPago: datos.metodoPago,
-    tarjetaUltimos4:
-      datos.metodoPago === 'tarjeta' && datos.tarjeta
-        ? datos.tarjeta.numero.replace(/\D/g, '').slice(-4)
-        : undefined,
-    detalles,
-    ...totalesDeDetalles(detalles),
-    envio: 0,
-  };
-
-  pedidos.push(nuevoPedido);
-  guardarPedidos(pedidos);
-  vaciarCarrito();
-
-  return nuevoPedido;
+    const pedido = mapearPedidoBackend(data);
+    vaciarCarrito();
+    return pedido;
+  } catch (error) {
+    console.error('Error al crear pedido:', error);
+    throw error;
+  }
 }
 
 export function formatPrecio(valor: number): string {
