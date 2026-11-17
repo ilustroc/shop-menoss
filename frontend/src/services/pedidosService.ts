@@ -125,15 +125,26 @@ function pedidosFicticios(): Pedido[] {
   ];
 }
 
-const ESTADOS_VALIDOS = Object.keys(ESTADO_LABELS) as EstadoPedido[];
-
 /** Corrige pedidos guardados con estados antiguos (ej. 'en_camino'). */
-function normalizarEstado(estado: string): EstadoPedido {
-  const estadoNormalizado = estado.toLowerCase();
-  if (estadoNormalizado === 'en_camino') return 'preparando';
-  return ESTADOS_VALIDOS.includes(estadoNormalizado as EstadoPedido)
-    ? (estadoNormalizado as EstadoPedido)
-    : 'pendiente';
+function normalizarEstado(estado?: string | null): EstadoPedido {
+  if (!estado || estado.trim() === '') return 'pendiente';
+
+  switch (estado.trim().toUpperCase()) {
+    case 'PENDIENTE':
+      return 'pendiente';
+    case 'CONFIRMADO':
+      return 'confirmado';
+    case 'PREPARANDO':
+      return 'preparando';
+    case 'ENTREGADO':
+      return 'entregado';
+    case 'CANCELADO':
+      return 'cancelado';
+    case 'EN_CAMINO':
+      return 'preparando';
+    default:
+      return 'pendiente';
+  }
 }
 
 function leerPedidos(): Pedido[] {
@@ -158,23 +169,27 @@ function leerPedidos(): Pedido[] {
 
 interface PedidoBackend {
   id: number;
-  fechaCreacion: string;
-  estado: string;
+  fechaCreacion?: string | null;
+  estado?: string | null;
   direccion: string;
   referencia?: string;
-  metodoPago: string;
-  subtotal: number;
-  envio: number;
-  total: number;
-  detalles: {
-    productoId: number;
-    nombreProducto: string;
-    precioUnitario: number;
-    cantidad: number;
-  }[];
+  metodoPago?: string | null;
+  subtotal?: number | null;
+  envio?: number | null;
+  total?: number | null;
+  detalles?: {
+    productoId?: number | null;
+    nombreProducto?: string | null;
+    precioUnitario?: number | null;
+    cantidad?: number | null;
+  }[] | null;
 }
 
-function normalizarMetodoPago(metodoPago: string): MetodoPago {
+function normalizarMetodoPago(metodoPago?: string | null): MetodoPago {
+  if (!metodoPago || metodoPago.trim() === '') {
+    throw new Error('Método de pago ausente en la respuesta del backend');
+  }
+
   const metodoNormalizado = metodoPago.toLowerCase();
   if (
     metodoNormalizado === 'efectivo' ||
@@ -190,21 +205,21 @@ function normalizarMetodoPago(metodoPago: string): MetodoPago {
 export function mapearPedidoBackend(pedido: PedidoBackend): Pedido {
   return {
     id: String(pedido.id),
-    fecha: pedido.fechaCreacion,
+    fecha: pedido.fechaCreacion ?? '',
     estado: normalizarEstado(pedido.estado),
     direccion: pedido.direccion,
     referencia: pedido.referencia,
     metodoPago: normalizarMetodoPago(pedido.metodoPago),
-    detalles: pedido.detalles.map((detalle) => ({
-      productoId: detalle.productoId,
-      nombre: detalle.nombreProducto,
-      precioUnitario: detalle.precioUnitario,
-      cantidad: detalle.cantidad,
+    detalles: (pedido.detalles ?? []).map((detalle) => ({
+      productoId: detalle.productoId ?? 0,
+      nombre: detalle.nombreProducto ?? '',
+      precioUnitario: detalle.precioUnitario ?? 0,
+      cantidad: detalle.cantidad ?? 0,
     })),
-    subtotal: pedido.subtotal,
-    envio: pedido.envio,
+    subtotal: pedido.subtotal ?? 0,
+    envio: pedido.envio ?? 0,
     igv: 0,
-    total: pedido.total,
+    total: pedido.total ?? 0,
   };
 }
 
