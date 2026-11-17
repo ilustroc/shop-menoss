@@ -136,6 +136,7 @@ public class PedidoService {
         response.setDireccion(pedido.getDireccion());
         response.setReferencia(pedido.getReferencia());
         response.setMetodoPago(MetodoPagoRequest.valueOf(pedido.getMetodoPago().name()));
+        response.setEstado(pedido.getEstado());
         response.setSubtotal(pedido.getSubtotal());
         response.setEnvio(pedido.getEnvio());
         response.setTotal(pedido.getTotal());
