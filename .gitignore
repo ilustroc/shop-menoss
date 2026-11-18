@@ -1,0 +1,4 @@
+# Variables de entorno locales (no versionar credenciales)
+.env
+.env.*
+!.env.example
