@@ -18,6 +18,7 @@ import com.shopmenoss.exception.TransicionEstadoInvalidaException;
 import com.shopmenoss.model.DetallePedido;
 import com.shopmenoss.model.EstadoPedido;
 import com.shopmenoss.model.Pedido;
+import com.shopmenoss.repository.DetallePedidoRepository;
 import com.shopmenoss.repository.PedidoRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -25,15 +26,24 @@ import jakarta.persistence.EntityNotFoundException;
 /**
  * Gestión administrativa de pedidos (feature/admin-pedidos).
  * Reutiliza Pedido, DetallePedido y PedidoRepository de feature/pedidos.
+ * Al cancelar un pedido, devuelve el stock con InventarioService (feature/inventory).
  */
 @Service
 @Transactional(readOnly = true)
 public class AdminPedidoService {
 
     private final PedidoRepository pedidoRepository;
+    private final DetallePedidoRepository detallePedidoRepository;
+    private final InventarioService inventarioService;
 
-    public AdminPedidoService(PedidoRepository pedidoRepository) {
+    public AdminPedidoService(
+            PedidoRepository pedidoRepository,
+            DetallePedidoRepository detallePedidoRepository,
+            InventarioService inventarioService
+    ) {
         this.pedidoRepository = pedidoRepository;
+        this.detallePedidoRepository = detallePedidoRepository;
+        this.inventarioService = inventarioService;
     }
 
     /** Lista todos los pedidos (más recientes primero), opcionalmente filtrados por estado. */
@@ -78,10 +88,24 @@ public class AdminPedidoService {
             );
         }
 
+        // El stock se descuenta al crear el pedido (PedidoService),
+        // por eso al cancelarlo se devuelven las unidades de cada detalle.
+        if (estadoNuevo == EstadoPedido.CANCELADO) {
+            reponerStock(pedido);
+        }
+
         pedido.setEstado(estadoNuevo);
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
 
         return construirDetalle(pedidoGuardado);
+    }
+
+    private void reponerStock(Pedido pedido) {
+        List<DetallePedido> detalles = detallePedidoRepository.findByPedidoId(pedido.getId());
+
+        for (DetallePedido detalle : detalles) {
+            inventarioService.reponerStock(detalle.getProducto().getId(), detalle.getCantidad());
+        }
     }
 
     private Pedido buscarPedido(Long id) {

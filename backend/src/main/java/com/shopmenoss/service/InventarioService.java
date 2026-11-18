@@ -80,6 +80,22 @@ public class InventarioService {
         return producto;
     }
 
+        /**
+     * Devuelve unidades al stock, por ejemplo cuando un pedido se cancela.
+     * Es la operación inversa de descontarStock y usa el mismo bloqueo de fila.
+     */
+    @Transactional
+    public Producto reponerStock(Long productoId, int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalStateException("La cantidad debe ser mayor que cero");
+        }
+
+        Producto producto = obtenerConBloqueo(productoId);
+        int stockActual = producto.getStock() == null ? 0 : producto.getStock();
+        producto.setStock(stockActual + cantidad);
+        return producto;
+    }
+
     private Producto obtenerConBloqueo(Long productoId) {
         Producto producto = entityManager.find(Producto.class, productoId, LockModeType.PESSIMISTIC_WRITE);
         if (producto == null) {
