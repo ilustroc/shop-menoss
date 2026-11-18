@@ -3,6 +3,8 @@ package com.shopmenoss.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +28,8 @@ import com.shopmenoss.model.DetallePedido;
 import com.shopmenoss.model.EstadoPedido;
 import com.shopmenoss.model.MetodoPago;
 import com.shopmenoss.model.Pedido;
+import com.shopmenoss.model.Producto;
+import com.shopmenoss.repository.DetallePedidoRepository;
 import com.shopmenoss.repository.PedidoRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -36,6 +40,12 @@ class AdminPedidoServiceTest {
     @Mock
     private PedidoRepository pedidoRepository;
 
+    @Mock
+    private DetallePedidoRepository detallePedidoRepository;
+
+    @Mock
+    private InventarioService inventarioService;
+
     @InjectMocks
     private AdminPedidoService adminPedidoService;
 
@@ -45,6 +55,10 @@ class AdminPedidoServiceTest {
         detalle.setNombreProducto("Arroz Extra 1 kg");
         detalle.setPrecioUnitario(new BigDecimal("4.80"));
         detalle.setCantidad(3);
+
+        Producto producto = new Producto();
+        producto.setId(10L);
+        detalle.setProducto(producto);
 
         Pedido pedido = new Pedido();
         pedido.setId(id);
@@ -117,5 +131,28 @@ class AdminPedidoServiceTest {
 
         assertThrows(EstadoPedidoInvalidoException.class, () -> adminPedidoService.actualizarEstado(
                 1L, new ActualizarEstadoPedidoRequest("VOLANDO")));
+    }
+
+    @Test
+    void cancelarPedidoDevuelveElStock() {
+        Pedido pedido = crearPedido(1L, EstadoPedido.CONFIRMADO);
+        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(detallePedidoRepository.findByPedidoId(1L)).thenReturn(pedido.getDetalles());
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminPedidoService.actualizarEstado(1L, new ActualizarEstadoPedidoRequest("CANCELADO"));
+
+        verify(inventarioService).reponerStock(10L, 3);
+    }
+
+    @Test
+    void otrosCambiosDeEstadoNoModificanElStock() {
+        Pedido pedido = crearPedido(1L, EstadoPedido.CONFIRMADO);
+        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminPedidoService.actualizarEstado(1L, new ActualizarEstadoPedidoRequest("PREPARANDO"));
+
+        verify(inventarioService, never()).reponerStock(anyLong(), anyInt());
     }
 }
