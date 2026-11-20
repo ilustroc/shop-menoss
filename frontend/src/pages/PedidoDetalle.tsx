@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   getPedidoById,
@@ -72,12 +72,38 @@ function PedidoDetalle() {
     (location.state as { recienCreado?: boolean } | null)?.recienCreado
   );
 
-  // Inicializamos el estado directamente
-  const [pedido] = useState<Pedido | undefined>(() => {
-    return id ? getPedidoById(id) : undefined;
-  });
+  const [pedido, setPedido] = useState<Pedido>();
+  const [cargando, setCargando] = useState(Boolean(id));
+  const [error, setError] = useState(false);
 
-  if (!pedido) {
+  useEffect(() => {
+    let activo = true;
+
+    if (!id) {
+      return;
+    }
+
+    getPedidoById(id)
+      .then((pedidoEncontrado) => {
+        if (activo) setPedido(pedidoEncontrado);
+      })
+      .catch(() => {
+        if (activo) setError(true);
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [id]);
+
+  if (cargando) {
+    return <div className="container mt-5 py-4">Cargando pedido...</div>;
+  }
+
+  if (error || !pedido) {
     return (
       <div className="container mt-5 py-4">
         <Link to="/pedidos" className="btn btn-outline-secondary btn-sm mb-4 px-3 rounded-pill">
