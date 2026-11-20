@@ -1,6 +1,7 @@
 package com.shopmenoss.controller;
 
 import com.shopmenoss.dto.AuthResponse;
+import com.shopmenoss.dto.LoginRequest;
 import com.shopmenoss.dto.RegistroRequest;
 import com.shopmenoss.service.AuthService;
 
@@ -32,5 +33,12 @@ public class AuthController {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request) {
+
+        return ResponseEntity.ok(authService.login(request));
     }
 }

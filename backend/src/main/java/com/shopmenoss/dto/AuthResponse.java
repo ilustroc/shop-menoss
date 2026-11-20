@@ -10,7 +10,9 @@ public class AuthResponse {
     private String correo;
     private Rol rol;
     private String mensaje;
+    private String token;
 
+    // Constructor original (registro): sin token
     public AuthResponse(
             Long id,
             String nombre,
@@ -19,12 +21,26 @@ public class AuthResponse {
             Rol rol,
             String mensaje) {
 
+        this(id, nombre, apellido, correo, rol, mensaje, null);
+    }
+
+    // Constructor para login: con token
+    public AuthResponse(
+            Long id,
+            String nombre,
+            String apellido,
+            String correo,
+            Rol rol,
+            String mensaje,
+            String token) {
+
         this.id = id;
         this.nombre = nombre;
         this.apellido = apellido;
         this.correo = correo;
         this.rol = rol;
         this.mensaje = mensaje;
+        this.token = token;
     }
 
     public Long getId() {
@@ -49,5 +65,9 @@ public class AuthResponse {
 
     public String getMensaje() {
         return mensaje;
+    }
+
+    public String getToken() {
+        return token;
     }
 }
