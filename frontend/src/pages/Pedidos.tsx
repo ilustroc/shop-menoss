@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getPedidos,
@@ -14,9 +14,29 @@ import type { EstadoPedido, Pedido } from '../types/pedido';
 type Filtro = 'todos' | EstadoPedido;
 
 function Pedidos() {
-  const [listaPedidos] = useState<Pedido[]>(() => getPedidos());
+  const [listaPedidos, setListaPedidos] = useState<Pedido[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
   const [hayCarrito] = useState(() => getCarritoActual().length > 0);
   const [filtro, setFiltro] = useState<Filtro>('todos');
+
+  useEffect(() => {
+    let activo = true;
+    getPedidos()
+      .then((pedidos) => {
+        if (activo) setListaPedidos(pedidos);
+      })
+      .catch(() => {
+        if (activo) setError(true);
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const pedidosFiltrados =
     filtro === 'todos'
@@ -38,7 +58,13 @@ function Pedidos() {
         )}
       </div>
 
-      {listaPedidos.length > 0 && (
+      {cargando ? (
+        <div className="alert alert-info text-center">Cargando pedidos...</div>
+      ) : error ? (
+        <div className="alert alert-danger text-center">
+          No se pudieron cargar los pedidos.
+        </div>
+      ) : listaPedidos.length > 0 && (
         <div className="d-flex align-items-center gap-2 mb-3">
           <label htmlFor="filtro-estado" className="small text-muted mb-0">
             Filtrar por estado:
@@ -59,7 +85,7 @@ function Pedidos() {
         </div>
       )}
 
-      {listaPedidos.length === 0 ? (
+      {!cargando && !error && listaPedidos.length === 0 ? (
         <div className="alert alert-info text-center">
           Aún no tienes pedidos registrados.
         </div>

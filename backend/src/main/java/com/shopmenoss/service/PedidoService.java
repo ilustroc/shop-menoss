@@ -91,6 +91,7 @@ public class PedidoService {
         return construirResponse(pedidoGuardado, detallesGuardados);
     }
 
+    @Transactional(readOnly = true)
     public List<PedidoResponse> listarPedidos() {
         List<Pedido> pedidos = pedidoRepository.findAll();
         List<PedidoResponse> respuesta = new ArrayList<>();
@@ -103,6 +104,7 @@ public class PedidoService {
         return respuesta;
     }
 
+    @Transactional(readOnly = true)
     public PedidoResponse obtenerPedido(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Pedido no encontrado: " + id));
@@ -134,6 +136,7 @@ public class PedidoService {
         response.setDireccion(pedido.getDireccion());
         response.setReferencia(pedido.getReferencia());
         response.setMetodoPago(MetodoPagoRequest.valueOf(pedido.getMetodoPago().name()));
+        response.setEstado(pedido.getEstado());
         response.setSubtotal(pedido.getSubtotal());
         response.setEnvio(pedido.getEnvio());
         response.setTotal(pedido.getTotal());

@@ -28,6 +28,7 @@ export interface Pedido {
   tarjetaUltimos4?: string;
   detalles: DetallePedido[];
   subtotal: number;
+  envio: number;
   igv: number;
   total: number;
 }

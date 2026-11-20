@@ -1,0 +1,1296 @@
+{
+  "info": {
+    "_postman_id": "712283e4-24f1-4ad1-a807-85067c20d688",
+    "name": "Shop Menoss - Pruebas funcionales",
+    "description": "Colección derivada de los controladores, DTO, servicios y validaciones reales. SecurityConfig permite todas las rutas y deshabilita CSRF, por lo que no se requiere autenticación. Las carpetas 01 y 02 no persisten cambios. La carpeta 03 se omite por defecto mediante variables de seguridad. La carpeta 04 requiere enableProfessorDemo=true para crear el producto de la demostración.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:18088",
+      "type": "string"
+    },
+    {
+      "key": "productoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productoConStockId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productoInexistenteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pedidoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pedidoInexistenteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stockOriginal",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stockNuevo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pedidoCreadoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "correoRegistro",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "enableStockWrite",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "enablePermanentWrites",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "stockWritePendingRestore",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "categoriaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productoDemoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productoDemoNombre",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "enableProfessorDemo",
+      "value": "false",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Consultas",
+      "description": "Sólo lectura. Ejecutar en orden para capturar IDs dinámicos.",
+      "item": [
+        {
+          "name": "01 Estado de la API",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Comprueba disponibilidad. /api/health devuelve texto plano."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Mensaje de salud esperado', () => pm.expect(pm.response.text()).to.eql('Shop Menoss API funcionando correctamente'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Inventario completo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "description": "Lista el inventario y captura un producto, su stock y un ID inexistente calculado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const productos = pm.response.json();",
+                  "pm.test('Respuesta es una lista', () => pm.expect(productos).to.be.an('array'));",
+                  "pm.test('Campos y criterio stockBajo', () => productos.forEach(p => {",
+                  "  pm.expect(p).to.have.all.keys('productoId','nombre','stock','stockBajo');",
+                  "  pm.expect(p.productoId).to.be.a('number');",
+                  "  pm.expect(p.nombre).to.be.a('string');",
+                  "  pm.expect(p.stock).to.be.a('number');",
+                  "  pm.expect(p.stockBajo).to.eql(p.stock <= 5);",
+                  "}));",
+                  "if (productos.length) {",
+                  "  const producto = productos[0];",
+                  "  const conStock = productos.find(p => Number.isInteger(p.stock) && p.stock > 0);",
+                  "  pm.collectionVariables.set('productoId', String(producto.productoId));",
+                  "  pm.collectionVariables.set('stockOriginal', String(producto.stock));",
+                  "  pm.collectionVariables.set('stockNuevo', String(producto.stock + 1));",
+                  "  pm.collectionVariables.set('productoInexistenteId', String(Math.max(...productos.map(p => Number(p.productoId))) + 1000000));",
+                  "  if (conStock) pm.collectionVariables.set('productoConStockId', String(conStock.productoId));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Productos con stock bajo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario/bajo-stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "bajo-stock"
+              ]
+            },
+            "description": "Devuelve productos con stock menor o igual al umbral implementado de 5."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - stock bajo',()=>pm.response.to.have.status(200));",
+                  "const a=pm.response.json();",
+                  "pm.test('Solo devuelve productos con stock <= 5',()=>{",
+                  "  pm.expect(a).to.be.an('array');",
+                  "  a.forEach(p=>{pm.expect(p.stock).to.be.at.most(5);pm.expect(p.stockBajo).to.eql(true);});",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Listado de pedidos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Lista los pedidos y captura dinámicamente un ID existente y otro inexistente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const pedidos = pm.response.json();",
+                  "pm.test('Respuesta es una lista de pedidos', () => {",
+                  "  pm.expect(pedidos).to.be.an('array');",
+                  "  pedidos.forEach(p => pm.expect(p).to.include.all.keys('id','direccion','metodoPago','subtotal','envio','total','fechaCreacion','detalles'));",
+                  "});",
+                  "if (pedidos.length) {",
+                  "  pm.collectionVariables.set('pedidoId', String(pedidos[0].id));",
+                  "  pm.collectionVariables.set('pedidoInexistenteId', String(Math.max(...pedidos.map(p => Number(p.id))) + 1000000));",
+                  "} else {",
+                  "  pm.collectionVariables.unset('pedidoId');",
+                  "  pm.collectionVariables.set('pedidoInexistenteId', String(Date.now()));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Consulta de pedido por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoId}}"
+              ]
+            },
+            "description": "Usa pedidoId capturado por el listado. Se omite si no existen pedidos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('pedidoId')) {",
+                  "  console.warn('Omitida: no existen pedidos para consultar.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const pedido = pm.response.json();",
+                  "pm.test('Pedido coincide y contiene campos relevantes', () => {",
+                  "  pm.expect(String(pedido.id)).to.eql(pm.collectionVariables.get('pedidoId'));",
+                  "  pm.expect(pedido).to.include.all.keys('direccion','metodoPago','subtotal','envio','total','fechaCreacion','detalles');",
+                  "  pm.expect(pedido.detalles).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Validaciones",
+      "description": "Casos rechazados por Bean Validation o reglas de negocio; no deben persistir cambios.",
+      "item": [
+        {
+          "name": "06 Stock negativo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Valida @Min(0); se rechaza antes de modificar inventario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('productoId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 - stock negativo',()=>pm.response.to.have.status(400));",
+                  "const a=pm.response.json();",
+                  "pm.test('Error indica campo stock',()=>pm.expect(a).to.have.property('stock'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Stock obligatorio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Valida @NotNull sobre stock; no modifica datos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('productoId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Se informa stock obligatorio', () => pm.expect(pm.response.json().stock).to.include('obligatorio'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Producto inexistente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoInexistenteId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoInexistenteId}}",
+                "stock"
+              ]
+            },
+            "description": "Usa un ID calculado desde el inventario; no crea ni modifica productos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('productoInexistenteId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error identifica el producto', () => pm.expect(pm.response.json().error).to.include('Producto no encontrado'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Pedido inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoInexistenteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoInexistenteId}}"
+              ]
+            },
+            "description": "Usa un ID calculado desde el listado de pedidos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('pedidoInexistenteId')) pm.collectionVariables.set('pedidoInexistenteId', String(Date.now()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error identifica el pedido', () => pm.expect(pm.response.json().error).to.include('Pedido no encontrado'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Pedido con datos inválidos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Valida @NotBlank en direccion y @NotEmpty en detalles; no persiste.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"\",\n  \"referencia\": \"Postman\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 - pedido sin datos obligatorios',()=>pm.response.to.have.status(400));",
+                  "const a=pm.response.json();",
+                  "pm.test('Errores en direccion y detalles',()=>{",
+                  "  pm.expect(a).to.have.property('direccion');",
+                  "  pm.expect(a).to.have.property('detalles');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Cantidad de pedido inválida",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Valida @Min(1) en detalles[].cantidad; no descuenta stock ni crea pedido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Pruebas 123, Lima\",\n  \"referencia\": \"Cantidad inválida\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": 0,\n      \"cantidad\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.collectionVariables.get('productoId');",
+                  "if (!id) { pm.execution.skipRequest(); } else {",
+                  "  pm.request.body.update(JSON.stringify({direccion:'Av. Pruebas 123, Lima',referencia:'Cantidad inválida',metodoPago:'EFECTIVO',detalles:[{productoId:Number(id),cantidad:0}]}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const errores = pm.response.json();",
+                  "pm.test('Se informa cantidad', () => pm.expect(Object.keys(errores).some(k => k.includes('cantidad'))).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Pedido sin stock suficiente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Solicita stockOriginal + 1. @Transactional revierte el descuento al responder 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Test 123, Lima\",\n  \"referencia\": \"Caso negativo de Postman\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": \"{{productoId}}\",\n      \"cantidad\": 1000000000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.collectionVariables.get('productoId');",
+                  "const stock = Number(pm.collectionVariables.get('stockOriginal'));",
+                  "if (!id || !Number.isInteger(stock) || stock >= 2147483647) {",
+                  "  console.warn('Omitida: falta producto apto.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  pm.request.body.update(JSON.stringify({direccion:'Av. Pruebas 123, Lima',referencia:'Stock insuficiente',metodoPago:'EFECTIVO',detalles:[{productoId:Number(id),cantidad:stock+1}]}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error informa stock insuficiente', () => pm.expect(pm.response.json().error).to.include('Stock insuficiente'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Registro de usuario inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "Comprueba nombre, apellido, correo y contraseña; no crea usuario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"A\",\n  \"apellido\": \"B\",\n  \"correo\": \"correo-invalido\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const errores = pm.response.json();",
+                  "pm.test('Se informan todos los campos inválidos', () => ['nombre','apellido','correo','password'].forEach(c => pm.expect(errores).to.have.property(c)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Inventario permanece sin cambios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "description": "Confirma que las validaciones no alteraron el stock capturado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const productos = pm.response.json();",
+                  "const producto = productos.find(p => String(p.productoId) === pm.collectionVariables.get('productoId'));",
+                  "pm.test('Stock original se conserva', () => {",
+                  "  pm.expect(producto, 'producto capturado').to.exist;",
+                  "  pm.expect(producto.stock).to.eql(Number(pm.collectionVariables.get('stockOriginal')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Operaciones de escritura",
+      "description": "Se omiten por defecto. enableStockWrite habilita el cambio temporal y su restauración; enablePermanentWrites habilita pedidos y usuarios permanentes.",
+      "item": [
+        {
+          "name": "15 Actualización válida de stock (MODIFICA)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Establece stockOriginal + 1. Requiere enableStockWrite=true y restauración inmediata.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": \"{{stockNuevo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('enableStockWrite') !== 'true') {",
+                  "  console.warn('Omitida: define enableStockWrite=true conscientemente.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  const original = Number(pm.collectionVariables.get('stockOriginal'));",
+                  "  if (!pm.collectionVariables.get('productoId') || !Number.isInteger(original)) throw new Error('Ejecuta primero Inventario completo.');",
+                  "  const nuevo = original + 1;",
+                  "  pm.collectionVariables.set('stockNuevo', String(nuevo));",
+                  "  pm.request.body.update(JSON.stringify({stock:nuevo}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - stock actualizado',()=>pm.response.to.have.status(200));",
+                  "const p=pm.response.json();",
+                  "pm.test('Stock resulta igual al nuevo',()=>pm.expect(p.stock).to.eql(Number(pm.collectionVariables.get('stockNuevo'))));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('stockWritePendingRestore', 'true');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Restaurar stock original (MODIFICA)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Restaura el valor capturado. Sólo es seguro si no hubo cambios concurrentes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": \"{{stockOriginal}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('enableStockWrite') !== 'true' || pm.collectionVariables.get('stockWritePendingRestore') !== 'true') {",
+                  "  console.warn('Omitida: no hay cambio pendiente de restaurar.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  pm.request.body.update(JSON.stringify({stock:Number(pm.collectionVariables.get('stockOriginal'))}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - stock restaurado',()=>pm.response.to.have.status(200));",
+                  "const p=pm.response.json();",
+                  "pm.test('Stock restaurado al valor inicial',()=>pm.expect(p.stock).to.eql(Number(pm.collectionVariables.get('stockOriginal'))));",
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('stockWritePendingRestore','false'); pm.collectionVariables.set('enableStockWrite','false'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Creación de pedido (PERMANENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Crea un pedido y descuenta stock. Requiere enablePermanentWrites=true. La API no ofrece borrado ni reversión.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Pruebas 123, Lima\",\n  \"referencia\": \"Evidencia Postman - registrar como prueba\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": 4,\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('enablePermanentWrites') !== 'true') {",
+                  "  console.warn('Omitida: crea un pedido permanente.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  const id = pm.collectionVariables.get('productoConStockId');",
+                  "  if (!id) throw new Error('Ejecuta primero Inventario completo y confirma stock.');",
+                  "  pm.request.body.update(JSON.stringify({direccion:'Av. Pruebas 123, Lima',referencia:'Evidencia Postman',metodoPago:'EFECTIVO',detalles:[{productoId:Number(id),cantidad:1}]}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 - pedido creado',()=>pm.response.to.have.status(201));",
+                  "const p=pm.response.json();",
+                  "pm.test('Pedido tiene id, total y detalles',()=>{",
+                  "  pm.expect(p.id).to.be.a('number');",
+                  "  pm.expect(p.detalles).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('pedidoCreadoId',String(p.id));",
+                  "console.log('Nuevo pedido:',p.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Registro de usuario (PERMANENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "Crea un usuario CLIENTE. Requiere enablePermanentWrites=true; no existe endpoint de borrado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario\",\n  \"apellido\": \"Postman\",\n  \"correo\": \"\",\n  \"password\": \"DemoPostman1!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('enablePermanentWrites') !== 'true') {",
+                  "  console.warn('Omitida: crea un usuario permanente.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  const correo = `postman.${Date.now()}@example.com`;",
+                  "  pm.collectionVariables.set('correoRegistro', correo);",
+                  "  pm.request.body.update(JSON.stringify({nombre:'Usuario',apellido:'Postman',correo,password:'DemoPostman1!'}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "const usuario = pm.response.json();",
+                  "pm.test('Campos públicos y rol CLIENTE', () => {",
+                  "  pm.expect(usuario).to.include.all.keys('id','nombre','apellido','correo','rol','mensaje');",
+                  "  pm.expect(usuario.correo).to.eql(pm.collectionVariables.get('correoRegistro'));",
+                  "  pm.expect(usuario.rol).to.eql('CLIENTE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Demostración profesor",
+      "description": "Flujo permanente y manual. La consulta de categorías es segura; la creación y sus verificaciones se omiten hasta definir enableProfessorDemo=true. El producto queda guardado en PostgreSQL remoto porque la API usa la conexión SSL configurada en Compose.",
+      "item": [
+        {
+          "name": "19 Consultar categorías",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "description": "Obtiene una categoría real y guarda categoriaId dinámicamente. Esta lectura puede ejecutarse de forma segura."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const categorias = pm.response.json();",
+                  "pm.test('Hay al menos una categoría disponible', () => pm.expect(categorias).to.be.an('array').that.is.not.empty);",
+                  "pm.test('La categoría tiene los campos reales', () => categorias.forEach(c => pm.expect(c).to.include.all.keys('id','nombre','descripcion')));",
+                  "if (categorias.length) pm.collectionVariables.set('categoriaId', String(categorias[0].id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Crear producto de ejemplo (PERMANENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "description": "Crea un producto permanente en PostgreSQL remoto. Requiere enableProfessorDemo=true y no se ejecuta automáticamente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Producto Demo Postman\",\n  \"descripcion\": \"Creado durante la demostración académica\",\n  \"precio\": 9.90,\n  \"stock\": 7,\n  \"imagenUrl\": null,\n  \"activo\": true,\n  \"categoriaId\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('enableProfessorDemo') !== 'true') {",
+                  "  console.warn('Omitida: define enableProfessorDemo=true sólo durante la demostración.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  const categoriaId = pm.collectionVariables.get('categoriaId');",
+                  "  if (!categoriaId) throw new Error('Ejecuta primero 19 Consultar categorías.');",
+                  "  const nombre = `Producto Demo Postman ${Date.now()}`;",
+                  "  pm.collectionVariables.set('productoDemoNombre', nombre);",
+                  "  pm.request.body.update(JSON.stringify({nombre,descripcion:'Creado durante la demostración académica',precio:9.90,stock:7,imagenUrl:null,activo:true,categoriaId:Number(categoriaId)}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "const producto = pm.response.json();",
+                  "pm.test('Producto creado con campos y valores esperados', () => {",
+                  "  pm.expect(producto).to.include.all.keys('id','nombre','descripcion','precio','stock','imagenUrl','activo','categoriaId','categoriaNombre');",
+                  "  pm.expect(producto.id).to.be.a('number');",
+                  "  pm.expect(producto.nombre).to.eql(pm.collectionVariables.get('productoDemoNombre'));",
+                  "  pm.expect(producto.precio).to.eql(9.9);",
+                  "  pm.expect(producto.stock).to.eql(7);",
+                  "  pm.expect(producto.activo).to.eql(true);",
+                  "  pm.expect(String(producto.categoriaId)).to.eql(pm.collectionVariables.get('categoriaId'));",
+                  "});",
+                  "if (producto.id) pm.collectionVariables.set('productoDemoId', String(producto.id));",
+                  "pm.collectionVariables.set('enableProfessorDemo', 'false');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 Confirmar producto en listado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos?incluirInactivos=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Comprueba el endpoint GET /api/productos y localiza el ID creado."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('productoDemoId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const productos = pm.response.json();",
+                  "pm.test('El producto creado aparece en el listado', () => {",
+                  "  const producto = productos.find(p => String(p.id) === pm.collectionVariables.get('productoDemoId'));",
+                  "  pm.expect(producto).to.exist;",
+                  "  pm.expect(producto.nombre).to.eql(pm.collectionVariables.get('productoDemoNombre'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 Consultar producto creado por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoDemoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoDemoId}}"
+              ]
+            },
+            "description": "Confirma mediante GET /api/productos/{id} que el registro persistido conserva sus datos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('productoDemoId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const producto = pm.response.json();",
+                  "pm.test('GET recupera el producto persistido', () => {",
+                  "  pm.expect(String(producto.id)).to.eql(pm.collectionVariables.get('productoDemoId'));",
+                  "  pm.expect(producto.nombre).to.eql(pm.collectionVariables.get('productoDemoNombre'));",
+                  "  pm.expect(producto.stock).to.eql(7);",
+                  "  pm.expect(String(producto.categoriaId)).to.eql(pm.collectionVariables.get('categoriaId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 Confirmar producto en inventario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "description": "Demuestra que el mismo ID guardado en productos está disponible para inventario y pedidos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('productoDemoId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const inventario = pm.response.json();",
+                  "pm.test('El producto persistido aparece en inventario', () => {",
+                  "  const producto = inventario.find(p => String(p.productoId) === pm.collectionVariables.get('productoDemoId'));",
+                  "  pm.expect(producto).to.exist;",
+                  "  pm.expect(producto.nombre).to.eql(pm.collectionVariables.get('productoDemoNombre'));",
+                  "  pm.expect(producto.stock).to.eql(7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const tipo = pm.response.headers.get('Content-Type') || '';",
+          "const esHealth = pm.request.url.toString().includes('/api/health');",
+          "pm.test(esHealth ? 'Content-Type es texto' : 'Content-Type es JSON', () => {",
+          "  pm.expect(tipo).to.include(esHealth ? 'text/plain' : 'application/json');",
+          "});"
+        ]
+      }
+    }
+  ]
+}

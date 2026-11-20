@@ -109,9 +109,9 @@ function CheckoutPage() {
 
     setProcesando(true);
     // Simulamos una pequeña espera de "procesando pago"
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const pedidoCreado = crearPedido({
+        const pedidoCreado = await crearPedido({
           ...datosForm,
           tarjeta: datosForm.metodoPago === 'tarjeta' ? tarjeta : undefined,
         });

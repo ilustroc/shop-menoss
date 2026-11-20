@@ -4,12 +4,15 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.shopmenoss.model.EstadoPedido;
+
 public class PedidoResponse {
 
     private Long id;
     private String direccion;
     private String referencia;
     private MetodoPagoRequest metodoPago;
+    private EstadoPedido estado;
     private BigDecimal subtotal;
     private BigDecimal envio;
     private BigDecimal total;
@@ -49,6 +52,14 @@ public class PedidoResponse {
 
     public void setMetodoPago(MetodoPagoRequest metodoPago) {
         this.metodoPago = metodoPago;
+    }
+
+    public EstadoPedido getEstado() {
+        return estado;
+    }
+
+    public void setEstado(EstadoPedido estado) {
+        this.estado = estado;
     }
 
     public BigDecimal getSubtotal() {

@@ -10,8 +10,16 @@ import CheckoutPage from "../pages/CheckoutPage";
 import NotFound from "../pages/NotFound";
 import Contacto from "../pages/Contacto";
 
+import AdminRoute from "./AdminRoute";
+import AdminLayout from "../components/admin/AdminLayout";
+import DashboardAdmin from "../pages/admin/DashboardAdmin";
+import ProductosAdmin from "../pages/admin/ProductosAdmin";
+import CategoriasAdmin from "../pages/admin/CategoriasAdmin";
+import InventarioAdmin from "../pages/admin/InventarioAdmin";
+import PedidosAdmin from "../pages/admin/PedidosAdmin";
+
 function AppRoutes() {
-    return (
+  return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/productos" element={<Productos />} />
@@ -22,6 +30,17 @@ function AppRoutes() {
       <Route path="/pedidos/:id" element={<PedidoDetalle />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/contacto" element={<Contacto />} />
+
+      {/* Rutas de administrador */}
+      <Route element={<AdminRoute />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<DashboardAdmin />} />
+          <Route path="productos" element={<ProductosAdmin />} />
+          <Route path="categorias" element={<CategoriasAdmin />} />
+          <Route path="inventario" element={<InventarioAdmin />} />
+          <Route path="pedidos" element={<PedidosAdmin />} />
+        </Route>
+      </Route>
 
       <Route path="*" element={<NotFound />} />
     </Routes>
