@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "712283e4-24f1-4ad1-a807-85067c20d688",
     "name": "Shop Menoss - Pruebas funcionales",
-    "description": "Colección derivada de los controladores, DTO, servicios y validaciones reales. SecurityConfig permite todas las rutas y deshabilita CSRF, por lo que no se requiere autenticación. Las carpetas 01 y 02 no persisten cambios. La carpeta 03 se omite por defecto mediante variables de seguridad. La carpeta 04 requiere enableProfessorDemo=true para crear el producto de la demostración.",
+    "description": "Colección derivada de los controladores reales. Catálogo y health públicos; inventario y escritura de catálogo requieren ADMINISTRADOR. Pedidos pertenecen al usuario del JWT. Configura correo/password sólo en un entorno local de Postman y ejecuta Login, o asigna token. Escrituras y validación con stock concurrente desactivadas por defecto.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -90,6 +90,16 @@
       "key": "enableProfessorDemo",
       "value": "false",
       "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "enableStockValidation",
+      "value": "false",
+      "type": "string"
     }
   ],
   "item": [
@@ -122,6 +132,71 @@
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
                   "pm.test('Mensaje de salud esperado', () => pm.expect(pm.response.text()).to.eql('Shop Menoss API funcionando correctamente'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01b Login (cuenta existente)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"correo\":\"{{correo}}\",\"password\":\"{{password}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Usa correo/password de un entorno local. No crea usuarios. Para toda la colección utiliza una cuenta ADMINISTRADOR existente; /pedidos sólo muestra sus propios pedidos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('correo') || !pm.variables.get('password')) {",
+                  "  console.warn('Login omitido: configura correo/password en un entorno local o token manualmente.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  pm.collectionVariables.unset('token');",
+                  "  pm.request.body.update(JSON.stringify({correo:pm.variables.get('correo'),password:pm.variables.get('password')}));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+                  "const usuario=pm.response.json();",
+                  "pm.test('JWT y rol disponibles',()=>{pm.expect(usuario.token).to.be.a('string').and.not.empty;pm.expect(['CLIENTE','ADMINISTRADOR']).to.include(usuario.rol);});",
+                  "if(pm.response.code===200) pm.collectionVariables.set('token',usuario.token);"
                 ]
               }
             }
@@ -418,7 +493,7 @@
         {
           "name": "08 Producto inexistente",
           "request": {
-            "method": "PUT",
+            "method": "GET",
             "header": [
               {
                 "key": "Content-Type",
@@ -426,27 +501,17 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/productos/{{productoInexistenteId}}/stock",
+              "raw": "{{baseUrl}}/api/productos/{{productoInexistenteId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "productos",
-                "{{productoInexistenteId}}",
-                "stock"
+                "{{productoInexistenteId}}"
               ]
             },
-            "description": "Usa un ID calculado desde el inventario; no crea ni modifica productos.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stock\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
+            "description": "Usa un ID calculado desde el inventario; no crea ni modifica productos."
           },
           "event": [
             {
@@ -463,8 +528,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
-                  "pm.test('Error identifica el producto', () => pm.expect(pm.response.json().error).to.include('Producto no encontrado'));"
+                  "pm.test('HTTP 404',()=>pm.response.to.have.status(404));",
+                  "pm.test('Error de producto',()=>pm.expect(pm.response.json().error).to.include('producto'));"
                 ]
               }
             }
@@ -635,7 +700,7 @@
                 "pedidos"
               ]
             },
-            "description": "Solicita stockOriginal + 1. @Transactional revierte el descuento al responder 409.",
+            "description": "Desactivada por defecto. Si hay reposiciones concurrentes, stockOriginal+1 puede llegar a ser una compra válida y crear un pedido permanente. Ejecutar sólo con datos controlados.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"direccion\": \"Av. Test 123, Lima\",\n  \"referencia\": \"Caso negativo de Postman\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": \"{{productoId}}\",\n      \"cantidad\": 1000000000\n    }\n  ]\n}",
@@ -652,6 +717,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "if (pm.collectionVariables.get('enableStockValidation') !== 'true') {",
+                  "  console.warn('Omitida: el stock remoto puede cambiar; habilita sólo en una ventana controlada sin compras ni reposiciones.');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
                   "const id = pm.collectionVariables.get('productoId');",
                   "const stock = Number(pm.collectionVariables.get('stockOriginal'));",
                   "if (!id || !Number.isInteger(stock) || stock >= 2147483647) {",
@@ -659,6 +728,7 @@
                   "  pm.execution.skipRequest();",
                   "} else {",
                   "  pm.request.body.update(JSON.stringify({direccion:'Av. Pruebas 123, Lima',referencia:'Stock insuficiente',metodoPago:'EFECTIVO',detalles:[{productoId:Number(id),cantidad:stock+1}]}));",
+                  "}",
                   "}"
                 ]
               }
@@ -950,7 +1020,8 @@
                   "  pm.expect(p.detalles).to.be.an('array').that.is.not.empty;",
                   "});",
                   "pm.collectionVariables.set('pedidoCreadoId',String(p.id));",
-                  "console.log('Nuevo pedido:',p.id);"
+                  "console.log('Nuevo pedido:',p.id);",
+                  "pm.test('Envío S/10 y total calculado por servidor',()=>{pm.expect(p.envio).to.eql(10);pm.expect(p.total).to.eql(p.subtotal+p.envio);});"
                 ]
               }
             }
@@ -1292,5 +1363,15 @@
         ]
       }
     }
-  ]
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  }
 }
