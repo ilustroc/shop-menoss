@@ -1,34 +1,20 @@
+import api from './api';
 import type { Producto } from '../types/producto';
-
-// TODO backend: reemplazar por llamadas a api.get('/productos'), etc.
-let productos: Producto[] = [
-  { id: 1, nombre: 'Arroz Costeño 5kg', descripcion: 'Arroz extra superior', precio: 24.9, stock: 40, imagen: '', categoria: 'Abarrotes' },
-  { id: 2, nombre: 'Aceite Primor 1L', descripcion: 'Aceite vegetal', precio: 11.5, stock: 8, imagen: '', categoria: 'Abarrotes' },
-  { id: 3, nombre: 'Inca Kola 1.5L', descripcion: 'Gaseosa sabor original', precio: 7.5, stock: 60, imagen: '', categoria: 'Bebidas' },
-  { id: 4, nombre: 'Leche Gloria 400g', descripcion: 'Leche evaporada entera', precio: 4.2, stock: 5, imagen: '', categoria: 'Lácteos' },
-];
-let siguienteId = 5;
-
-export async function listarProductos(): Promise<Producto[]> {
-  return [...productos];
+import { listarCategorias } from './categoriaService';
+interface ProductoAPI { id: number; nombre: string; descripcion: string; precio: number; stock: number; imagenUrl: string; categoriaId: number; categoriaNombre: string; activo: boolean }
+function map(p: ProductoAPI): Producto { return {...p, imagen: p.imagenUrl || '/images/products/placeholder.png', categoria: p.categoriaNombre}; }
+export async function listarProductos(incluirInactivos = true): Promise<Producto[]> {
+  return (await api.get<ProductoAPI[]>('/productos', {params:{incluirInactivos}})).data.map(map);
 }
-
-export async function crearProducto(data: Omit<Producto, 'id'>): Promise<Producto> {
-  const nuevo: Producto = { id: siguienteId++, ...data };
-  productos = [...productos, nuevo];
-  return nuevo;
+async function body(p: Omit<Producto, 'id'>) {
+  const categoria = (await listarCategorias()).find(c=>c.nombre === p.categoria);
+  if (!categoria) throw new Error('Selecciona una categoría válida');
+  return {nombre:p.nombre,descripcion:p.descripcion,precio:p.precio,stock:p.stock,imagenUrl:p.imagen,activo:p.activo,categoriaId:categoria.id};
 }
-
-export async function actualizarProducto(id: number, data: Omit<Producto, 'id'>): Promise<void> {
-  productos = productos.map((p) => (p.id === id ? { id, ...data } : p));
-}
-
-export async function eliminarProducto(id: number): Promise<void> {
-  productos = productos.filter((p) => p.id !== id);
-}
-
-export async function ajustarStock(id: number, delta: number): Promise<void> {
-  productos = productos.map((p) =>
-    p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p
-  );
+export async function crearProducto(p: Omit<Producto, 'id'>): Promise<Producto> { return map((await api.post('/productos', await body(p))).data); }
+export async function actualizarProducto(id:number,p:Omit<Producto,'id'>):Promise<void>{await api.put('/productos/'+id, await body(p));}
+export async function eliminarProducto(id:number):Promise<void>{await api.delete('/productos/'+id);}
+export async function ajustarStock(id:number,delta:number):Promise<void>{
+  const p=(await api.get<ProductoAPI>('/productos/'+id)).data;
+  await api.put('/productos/'+id+'/stock',{stock:Math.max(0,p.stock+delta)});
 }

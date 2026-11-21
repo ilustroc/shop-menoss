@@ -10,7 +10,7 @@ import {
   vaciarCarrito,
 } from '../services/carritoService'
 
-const IGV_RATE = 0.18
+import { calcularTotales } from '../services/pedidosService'
 
 function Carrito() {
   const [items, setItems] = useState<CartItem[]>(() => leerCarrito())
@@ -20,7 +20,7 @@ function Carrito() {
   }
 
   const handleAumentar = (id: number) => {
-    actualizarCarrito(aumentarCantidad(id))
+    try { actualizarCarrito(aumentarCantidad(id)) } catch(e) { window.alert(e instanceof Error ? e.message : 'Stock insuficiente'); }
   }
 
   const handleDisminuir = (id: number) => {
@@ -45,13 +45,7 @@ function Carrito() {
     return `S/ ${valor.toFixed(2)}`
   }
 
-  const subtotalProductos = items.reduce(
-    (acc, item) => acc + item.precio * item.cantidad,
-    0
-  )
-
-  const igv = subtotalProductos * IGV_RATE
-  const totalFinal = subtotalProductos + igv
+  const { subtotal: subtotalProductos, envio, total: totalFinal } = calcularTotales(items)
 
   const totalProductos = items.reduce(
     (acc, item) => acc + item.cantidad,
@@ -311,16 +305,16 @@ function Carrito() {
               </div>
 
               <div className="d-flex justify-content-between mb-2 text-secondary small">
-                <span>Subtotal sin IGV:</span>
+                <span>Productos (IGV incluido):</span>
                 <span className="fw-semibold text-dark">
                   {formatPrecio(subtotalProductos)}
                 </span>
               </div>
 
               <div className="d-flex justify-content-between mb-3 text-secondary small">
-                <span>IGV ({(IGV_RATE * 100).toFixed(0)}%):</span>
+                <span>Envío:</span>
                 <span className="fw-semibold text-dark">
-                  {formatPrecio(igv)}
+                  {formatPrecio(envio)}
                 </span>
               </div>
 

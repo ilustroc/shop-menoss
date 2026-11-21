@@ -9,6 +9,15 @@ import {
 import CategoriaForm from '../../components/admin/CategoriaForm';
 
 function CategoriasAdmin() {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  async function ejecutar(action: () => Promise<unknown>) {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await action(); } catch(e) { setError(e instanceof Error ? e.message : 'No se pudo completar'); }
+    finally { setBusy(false); }
+  }
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editando, setEditando] = useState<Categoria | null>(null);
@@ -16,7 +25,7 @@ function CategoriasAdmin() {
   const cargar = async () => setCategorias(await listarCategorias());
 
   useEffect(() => {
-    void listarCategorias().then(setCategorias);
+    void listarCategorias().then(setCategorias).catch(e=>setError(e.message)).finally(()=>setLoading(false));
   }, []);
 
   const cerrarForm = () => {
@@ -28,17 +37,19 @@ function CategoriasAdmin() {
     if (editando) await actualizarCategoria(editando.id, data);
     else await crearCategoria(data);
     cerrarForm();
-    cargar();
+    await cargar();
   };
 
   const borrar = async (c: Categoria) => {
     if (!window.confirm(`¿Eliminar la categoría "${c.nombre}"?`)) return;
     await eliminarCategoria(c.id);
-    cargar();
+    await cargar();
   };
 
   return (
-    <>
+    <fieldset disabled={busy || loading}>
+      {(busy || loading) && <p>{loading ? 'Cargando datos…' : 'Procesando…'}</p>}
+      {error && <div role="alert" className="alert alert-danger">{error} <button onClick={()=>window.location.reload()}>Reintentar</button></div>}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="m-0">Categorías</h2>
         <button className="btn btn-primary" onClick={() => { setEditando(null); setMostrarForm(true); }}>
@@ -47,7 +58,7 @@ function CategoriasAdmin() {
       </div>
 
       {mostrarForm && (
-        <CategoriaForm key={editando?.id ?? 'nueva'} inicial={editando} onGuardar={guardar} onCancelar={cerrarForm} />
+        <CategoriaForm key={editando?.id ?? 'nueva'} inicial={editando} onGuardar={data => ejecutar(() => guardar(data))} onCancelar={cerrarForm} />
       )}
 
       <div className="table-responsive">
@@ -63,17 +74,17 @@ function CategoriasAdmin() {
                 <td>{c.descripcion}</td>
                 <td className="text-end">
                   <button className="btn btn-sm btn-outline-primary me-2" onClick={() => { setEditando(c); setMostrarForm(true); }}>Editar</button>
-                  <button className="btn btn-sm btn-outline-danger" onClick={() => borrar(c)}>Eliminar</button>
+                  <button className="btn btn-sm btn-outline-danger" onClick={() => ejecutar(() => borrar(c))}>Eliminar</button>
                 </td>
               </tr>
             ))}
-            {categorias.length === 0 && (
+            {!loading && !error && categorias.length === 0 && (
               <tr><td colSpan={4} className="text-center text-muted">No hay categorías.</td></tr>
             )}
           </tbody>
         </table>
       </div>
-    </>
+    </fieldset>
   );
 }
 
