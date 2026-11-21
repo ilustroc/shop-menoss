@@ -1,0 +1,694 @@
+{
+  "info": {
+    "_postman_id": "712283e4-24f1-4ad1-a807-85067c20d688",
+    "name": "Shop Menoss | Pruebas API (Postman)",
+    "description": "Evidencias de API contra el backend local conectado a PostgreSQL 17 del VPS. Empieza por carpeta 01; carpeta 03 modifica la base compartida. No ejecutar carpeta 03 en paralelo con operaciones reales. No incluye contraseñas. Basado en controllers del backend (main al 2026-10-23).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:18088",
+      "type": "string"
+    },
+    {
+      "key": "productoId",
+      "value": "4",
+      "type": "string"
+    },
+    {
+      "key": "pedidoId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "idInexistente",
+      "value": "2147483647",
+      "type": "string"
+    },
+    {
+      "key": "stockOriginal",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stockNuevo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pedidoCreadoId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Consultas (NO modifican datos)",
+      "description": "Ejecutar primero. Los tests capturan el ID y stock inicial de un producto, y el ID de un pedido existente para pruebas sucesivas.",
+      "item": [
+        {
+          "name": "01 Salud de API | 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - salud', () => pm.response.to.have.status(200));",
+                  "pm.test('Mensaje correcto', () => pm.expect(pm.response.text()).to.include('Shop Menoss API funcionando correctamente'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Inventario completo | 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - inventario', () => pm.response.to.have.status(200));",
+                  "const a=pm.response.json();",
+                  "pm.test('Respuesta es una lista',()=>pm.expect(a).to.be.an('array'));",
+                  "pm.test('Campos y consistencia stockBajo (<=5)',()=>{",
+                  "  a.forEach(p=>{",
+                  "    pm.expect(p).to.have.all.keys('productoId','nombre','stock','stockBajo');",
+                  "    pm.expect(p.stock).to.be.a('number');",
+                  "    pm.expect(p.stockBajo).to.eql(p.stock <= 5);",
+                  "  });",
+                  "});",
+                  "const p=a.find(x=>x.productoId===4) || a.find(x=>Number.isInteger(x.stock) && x.stock >= 0);",
+                  "if(p){",
+                  "  pm.collectionVariables.set('productoId',String(p.productoId));",
+                  "  pm.collectionVariables.set('stockOriginal',String(p.stock));",
+                  "  pm.collectionVariables.set('stockNuevo',String(p.stock+1));",
+                  "  console.log('Producto elegido:',p.productoId,p.nombre,'stock base',p.stock);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Productos con stock bajo | 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario/bajo-stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "bajo-stock"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - stock bajo',()=>pm.response.to.have.status(200));",
+                  "const a=pm.response.json();",
+                  "pm.test('Solo devuelve productos con stock <= 5',()=>{",
+                  "  pm.expect(a).to.be.an('array');",
+                  "  a.forEach(p=>{pm.expect(p.stock).to.be.at.most(5);pm.expect(p.stockBajo).to.eql(true);});",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Listar pedidos | 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - pedidos',()=>pm.response.to.have.status(200));",
+                  "const a=pm.response.json();",
+                  "pm.test('Pedidos es lista',()=>pm.expect(a).to.be.an('array'));",
+                  "if(a.length>0){pm.collectionVariables.set('pedidoId',String(a[0].id));}",
+                  "console.log('Pedidos encontrados:',a.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Consultar pedido por ID | 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoId}}"
+              ]
+            },
+            "description": "Primero ejecuta 04 para almacenar pedidoId. En base restaurada de muestra existe pedido 1."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - pedido existente',()=>pm.response.to.have.status(200));",
+                  "const p=pm.response.json();",
+                  "pm.test('Pedido tiene id, total y detalles',()=>{",
+                  "  pm.expect(p).to.have.property('id');",
+                  "  pm.expect(p).to.have.property('total');",
+                  "  pm.expect(p.detalles).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Casos negativos (NO modifican datos)",
+      "description": "Validaciones y control de errores; las operaciones inválidas deben ser rechazadas sin alterar datos.",
+      "item": [
+        {
+          "name": "06 Stock negativo | 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Valida @Min(0), no debe modificar inventario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 - stock negativo',()=>pm.response.to.have.status(400));",
+                  "const a=pm.response.json();",
+                  "pm.test('Error indica campo stock',()=>pm.expect(a).to.have.property('stock'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Producto inexistente | 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{idInexistente}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{idInexistente}}",
+                "stock"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404 - producto inexistente',()=>pm.response.to.have.status(404));",
+                  "pm.test('Respuesta con error',()=>pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Pedido inexistente | 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{idInexistente}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{idInexistente}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404 - pedido inexistente',()=>pm.response.to.have.status(404));",
+                  "pm.test('Respuesta con error',()=>pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Pedido inválido | 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"\",\n  \"referencia\": \"Postman\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 - pedido sin datos obligatorios',()=>pm.response.to.have.status(400));",
+                  "const a=pm.response.json();",
+                  "pm.test('Errores en direccion y detalles',()=>{",
+                  "  pm.expect(a).to.have.property('direccion');",
+                  "  pm.expect(a).to.have.property('detalles');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Stock insuficiente | 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "El @Transactional revierte modificaciones al rechazarse el pedido. Postman debe sustituir productoId como número JSON; se genera body mediante script antes de enviar.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Test 123, Lima\",\n  \"referencia\": \"Caso negativo de Postman\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": \"{{productoId}}\",\n      \"cantidad\": 1000000000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id=Number(pm.collectionVariables.get('productoId')||4);",
+                  "pm.request.body.update(JSON.stringify({direccion:'Av. Test 123, Lima',referencia:'Caso negativo Postman',metodoPago:'EFECTIVO',detalles:[{productoId:id,cantidad:1000000000}]}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409 - stock insuficiente',()=>pm.response.to.have.status(409));",
+                  "pm.test('Explica insuficiencia de stock',()=>pm.expect(pm.response.json().error.toLowerCase()).to.include('stock insuficiente'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Registro inválido | 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "No crea usuarios; se envían datos que incumplen validaciones.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"A\",\n  \"apellido\": \"B\",\n  \"correo\": \"correo-invalido\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 - registro inválido',()=>pm.response.to.have.status(400));",
+                  "const a=pm.response.json();",
+                  "pm.test('Errores de validación visibles',()=>pm.expect(Object.keys(a).length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Demostracion ESCRITURA (cambia datos del VPS)",
+      "description": "OPCIONAL: ejecutar manualmente y en orden solo en horario de pruebas coordinadas. 12 aumenta el stock +1; 13 lo restaura. No ejecutar con operaciones concurrentes: sobrescribir stock podría perder cambios ajenos. No ejecutar de forma accidental desde Collection Runner.",
+      "item": [
+        {
+          "name": "12 Ajustar stock +1 | 200 (MODIFICA)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Antes ejecutar GET inventario 02; la petición establece stockOriginal+1. Luego ejecutar 13 para restaurar. Pre-request construye JSON numérico.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": \"{{stockNuevo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const orig=pm.collectionVariables.get('stockOriginal');",
+                  "if(orig === undefined || orig === null || orig === ''){throw new Error('Primero ejecutar 02 Inventario para capturar stockOriginal');}",
+                  "const nuevo=Number(orig)+1;",
+                  "pm.collectionVariables.set('stockNuevo',String(nuevo));",
+                  "pm.request.body.update(JSON.stringify({stock:nuevo}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - stock actualizado',()=>pm.response.to.have.status(200));",
+                  "const p=pm.response.json();",
+                  "pm.test('Stock resulta igual al nuevo',()=>pm.expect(p.stock).to.eql(Number(pm.collectionVariables.get('stockNuevo'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Restaurar stock anterior | 200 (MODIFICA)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Ejecutar solo después del paso 12, verificando ausencia de compras/concurrencia. Pre-request construye JSON numérico.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": \"{{stockOriginal}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const orig=pm.collectionVariables.get('stockOriginal');",
+                  "if(orig === undefined || orig === null || orig === ''){throw new Error('Primero ejecutar 02 Inventario para capturar stockOriginal');}",
+                  "pm.request.body.update(JSON.stringify({stock:Number(orig)}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 - stock restaurado',()=>pm.response.to.have.status(200));",
+                  "const p=pm.response.json();",
+                  "pm.test('Stock restaurado al valor inicial',()=>pm.expect(p.stock).to.eql(Number(pm.collectionVariables.get('stockOriginal'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Crear pedido válido | 201 (PERMANENTE, OPCIONAL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "ATENCIÓN: inserta pedido permanente y descuenta stock real del VPS. Solo con autorización del equipo; no usar para captura básica. El costo de envío en el backend actual es 10000, cuestión funcional pendiente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Pruebas 123, Lima\",\n  \"referencia\": \"Evidencia Postman - registrar como prueba\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": 4,\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id=Number(pm.collectionVariables.get('productoId')||4);",
+                  "pm.request.body.update(JSON.stringify({direccion:'Av. Pruebas 123, Lima',referencia:'Evidencia Postman',metodoPago:'EFECTIVO',detalles:[{productoId:id,cantidad:1}]}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 - pedido creado',()=>pm.response.to.have.status(201));",
+                  "const p=pm.response.json();",
+                  "pm.test('Pedido tiene id, total y detalles',()=>{",
+                  "  pm.expect(p.id).to.be.a('number');",
+                  "  pm.expect(p.detalles).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('pedidoCreadoId',String(p.id));",
+                  "console.log('Nuevo pedido:',p.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
