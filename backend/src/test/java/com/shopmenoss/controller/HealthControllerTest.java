@@ -14,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(HealthController.class)
 @Import(SecurityConfig.class)
 class HealthControllerTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.shopmenoss.security.JwtService jwtService;
 
     @Autowired
     private MockMvc mockMvc;

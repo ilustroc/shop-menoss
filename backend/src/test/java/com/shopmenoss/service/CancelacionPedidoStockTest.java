@@ -26,6 +26,7 @@ import jakarta.persistence.EntityManager;
  */
 @SpringBootTest
 @Transactional
+@org.springframework.security.test.context.support.WithMockUser(username = "cliente@test.com")
 class CancelacionPedidoStockTest {
 
     @Autowired
@@ -41,6 +42,7 @@ class CancelacionPedidoStockTest {
 
     @BeforeEach
     void prepararProducto() {
+        entityManager.persist(new com.shopmenoss.model.Usuario("Cliente", "Prueba", "cliente@test.com", "test-only", com.shopmenoss.model.Rol.CLIENTE));
         Categoria categoria = new Categoria();
         categoria.setNombre("Categoria cancelacion");
         entityManager.persist(categoria);

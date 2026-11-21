@@ -6,12 +6,15 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class CrearPedidoRequest {
 
     @NotBlank
+    @Size(min = 5, max = 255)
     private String direccion;
 
+    @Size(max = 255)
     private String referencia;
 
     @NotNull
@@ -19,7 +22,7 @@ public class CrearPedidoRequest {
 
     @NotEmpty
     @Valid
-    private List<DetallePedidoRequest> detalles;
+    private List<@NotNull DetallePedidoRequest> detalles;
 
     public CrearPedidoRequest() {
     }
