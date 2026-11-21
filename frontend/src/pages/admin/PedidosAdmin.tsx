@@ -2,25 +2,36 @@ import { Fragment, useEffect, useState } from 'react';
 import type { EstadoPedido, Pedido } from '../../types/pedido';
 import { listarPedidos, cambiarEstadoPedido } from '../../services/pedidoAdminService';
 
-const ESTADOS: EstadoPedido[] = ['pendiente', 'confirmado', 'preparando', 'entregado', 'cancelado'];
+const SIGUIENTES: Record<EstadoPedido, EstadoPedido[]> = {pendiente:['confirmado','cancelado'],confirmado:['preparando','cancelado'],preparando:['entregado','cancelado'],entregado:[],cancelado:[]};
 
 function PedidosAdmin() {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  async function ejecutar(action: () => Promise<unknown>) {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await action(); } catch(e) { setError(e instanceof Error ? e.message : 'No se pudo completar'); }
+    finally { setBusy(false); }
+  }
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
 
   const cargar = async () => setPedidos(await listarPedidos());
 
   useEffect(() => {
-    void listarPedidos().then(setPedidos);
+    void listarPedidos().then(setPedidos).catch(e=>setError(e.message)).finally(()=>setLoading(false));
   }, []);
 
   const cambiar = async (id: string, estado: EstadoPedido) => {
     await cambiarEstadoPedido(id, estado);
-    cargar();
+    await cargar();
   };
 
   return (
-    <>
+    <fieldset disabled={busy || loading}>
+      {(busy || loading) && <p>{loading ? 'Cargando datos…' : 'Procesando…'}</p>}
+      {error && <div role="alert" className="alert alert-danger">{error} <button onClick={()=>window.location.reload()}>Reintentar</button></div>}
       <h2 className="mb-3">Pedidos</h2>
       <div className="table-responsive">
         <table className="table align-middle">
@@ -31,6 +42,7 @@ function PedidosAdmin() {
             </tr>
           </thead>
           <tbody>
+            {!loading && !error && pedidos.length === 0 && <tr><td colSpan={6}>No hay pedidos registrados.</td></tr>}
             {pedidos.map((p) => (
               <Fragment key={p.id}>
                 <tr>
@@ -42,9 +54,9 @@ function PedidosAdmin() {
                     <select
                       className="form-select form-select-sm text-capitalize"
                       value={p.estado}
-                      onChange={(e) => cambiar(p.id, e.target.value as EstadoPedido)}
+                      onChange={(e) => ejecutar(() => cambiar(p.id, e.target.value as EstadoPedido))}
                     >
-                      {ESTADOS.map((e) => (
+                      {[p.estado,...SIGUIENTES[p.estado]].map((e) => (
                         <option key={e} value={e}>{e}</option>
                       ))}
                     </select>
@@ -70,7 +82,7 @@ function PedidosAdmin() {
                         ))}
                       </ul>
                       <div className="text-muted">
-                        Subtotal S/ {p.subtotal.toFixed(2)} · IGV S/ {p.igv.toFixed(2)} · Total S/ {p.total.toFixed(2)}
+                        Productos S/ {p.subtotal.toFixed(2)} · Envío S/ {p.envio.toFixed(2)} · Total S/ {p.total.toFixed(2)} · Pago simulado
                       </div>
                     </td>
                   </tr>
@@ -80,7 +92,7 @@ function PedidosAdmin() {
           </tbody>
         </table>
       </div>
-    </>
+    </fieldset>
   );
 }
 

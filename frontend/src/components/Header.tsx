@@ -1,6 +1,9 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 
+import { session, logout } from '../services/session';
 function Header() {
+  useLocation(); // Actualiza el usuario al navegar después del login.
+  const user = session();
   return (
     <header className="border-bottom bg-white shadow-sm">
       <nav className="navbar navbar-expand-lg navbar-light">
@@ -92,11 +95,12 @@ function Header() {
               </li>
             </ul>
 
+            {user && <div className="d-flex gap-2 align-items-center"><span>{user.nombre}</span>{user.rol === 'ADMINISTRADOR' && <Link to="/admin">Administración</Link>}<button className="btn btn-outline-secondary" onClick={logout}>Cerrar sesión</button></div>}
             {/* Acciones del usuario */}
             <div className="d-grid d-lg-flex gap-2">
-              <Link className="btn btn-outline-primary btn-sm px-3" to="/login">
+              {!user && <Link className="btn btn-outline-primary btn-sm px-3" to="/login">
                 Iniciar sesión
-              </Link>
+              </Link>}
 
               <Link
                 className="btn btn-outline-secondary btn-sm px-3"
