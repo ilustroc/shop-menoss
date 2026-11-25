@@ -31,9 +31,13 @@ function CategoriasAdmin() {
   const [ocupado, setOcupado] = useState(false);
   // El ref bloquea al instante un segundo clic; el estado solo deshabilita los controles.
   const ocupadoRef = useRef(false);
+  // Identifica cada aviso para que el temporizador de uno nuevo empiece de cero.
+  const contadorAvisos = useRef(0);
 
-  const mostrarAviso = (tipo: Aviso["tipo"], mensaje: string) =>
-    setAviso({ id: Date.now(), tipo, mensaje });
+  const mostrarAviso = (tipo: Aviso["tipo"], mensaje: string) => {
+    contadorAvisos.current += 1;
+    setAviso({ id: contadorAvisos.current, tipo, mensaje });
+  };
 
   const ejecutar = async (accion: () => Promise<void>) => {
     if (ocupadoRef.current) return;
