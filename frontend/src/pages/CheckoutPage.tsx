@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import {
   getCarritoActual,
   crearPedido,
@@ -8,76 +8,34 @@ import {
   METODO_PAGO_LABELS,
 } from '../services/pedidosService';
 import type { CartItem } from '../types/producto';
-import type { DatosCompra, DatosTarjeta, MetodoPago } from '../types/pedido';
+import type { DatosCompra, MetodoPago } from '../types/pedido';
 
-type Errores = Partial<Record<'direccion' | keyof DatosTarjeta | 'general', string>>;
-
-const TARJETA_VACIA: DatosTarjeta = { titular: '', numero: '', vencimiento: '', cvv: '' };
-
-// Validaciones del pago simulado (no se conecta con ninguna pasarela real)
-function validar(datos: DatosCompra, tarjeta: DatosTarjeta): Errores {
-  const errores: Errores = {};
-
-  if (datos.direccion.trim().length < 5) {
-    errores.direccion = 'Ingresa una dirección de entrega válida.';
-  }
-
-  if (datos.metodoPago === 'tarjeta') {
-    if (tarjeta.titular.trim().length < 3) {
-      errores.titular = 'Ingresa el nombre del titular.';
-    }
-    if (tarjeta.numero.replace(/\D/g, '').length !== 16) {
-      errores.numero = 'El número debe tener 16 dígitos.';
-    }
-
-    const match = /^(\d{2})\/(\d{2})$/.exec(tarjeta.vencimiento);
-    if (!match) {
-      errores.vencimiento = 'Usa el formato MM/AA.';
-    } else {
-      const mes = Number(match[1]);
-      const anio = 2000 + Number(match[2]);
-      const hoy = new Date();
-      const vencida =
-        anio < hoy.getFullYear() ||
-        (anio === hoy.getFullYear() && mes < hoy.getMonth() + 1);
-      if (mes < 1 || mes > 12) errores.vencimiento = 'Mes inválido.';
-      else if (vencida) errores.vencimiento = 'La tarjeta está vencida.';
-    }
-
-    if (!/^\d{3,4}$/.test(tarjeta.cvv)) {
-      errores.cvv = 'CVV de 3 o 4 dígitos.';
-    }
-  }
-
-  return errores;
+import api from '../services/api';
+import { session } from '../services/session';
+type Errores = Partial<Record<'direccion' | 'general', string>>;
+function validar(datos: DatosCompra): Errores {
+ return datos.direccion.trim().length < 5 ? {direccion:'Ingresa una dirección válida.'} : {};
 }
-
-function formatearNumeroTarjeta(valor: string) {
-  return valor
-    .replace(/\D/g, '')
-    .slice(0, 16)
-    .replace(/(\d{4})(?=\d)/g, '$1 ');
-}
-
-function formatearVencimiento(valor: string) {
-  const digitos = valor.replace(/\D/g, '').slice(0, 4);
-  return digitos.length > 2 ? `${digitos.slice(0, 2)}/${digitos.slice(2)}` : digitos;
-}
-
 function CheckoutPage() {
   const navigate = useNavigate();
 
-  const [carrito] = useState<CartItem[]>(() => getCarritoActual());
+  const [carrito, setCarrito] = useState<CartItem[]>(() => getCarritoActual());
   const [datosForm, setDatosForm] = useState<DatosCompra>({
     direccion: '',
     referencia: '',
     metodoPago: 'efectivo',
   });
-  const [tarjeta, setTarjeta] = useState<DatosTarjeta>(TARJETA_VACIA);
+  const enviando = useRef(false);
+  const [stockValidado, setStockValidado] = useState(false);
   const [errores, setErrores] = useState<Errores>({});
   const [procesando, setProcesando] = useState(false);
 
-  const { subtotal, igv, total } = calcularTotales(carrito);
+  useEffect(() => { Promise.all(getCarritoActual().map(async item => {
+    const p = (await api.get('/productos/'+item.id)).data;
+    if (!p.activo || p.stock < item.cantidad) throw new Error('Stock insuficiente: '+p.nombre);
+    return {...item, precio:p.precio, nombre:p.nombre, stock:p.stock};
+  })).then(items=>{setCarrito(items);setStockValidado(true);}).catch(e=>setErrores({general:e.message})); }, []);
+  const { subtotal, envio, total } = calcularTotales(carrito);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -86,48 +44,42 @@ function CheckoutPage() {
     setDatosForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleTarjetaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    let valor = value;
-    if (name === 'numero') valor = formatearNumeroTarjeta(value);
-    if (name === 'vencimiento') valor = formatearVencimiento(value);
-    if (name === 'cvv') valor = value.replace(/\D/g, '').slice(0, 4);
-    setTarjeta((prev) => ({ ...prev, [name]: valor }));
-  };
-
-  const handleConfirmarPedido = (e: React.FormEvent) => {
+  const handleConfirmarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (enviando.current || !stockValidado) return;
 
     if (carrito.length === 0) {
       setErrores({ general: 'Tu carrito está vacío. Agrega productos antes de continuar.' });
       return;
     }
 
-    const nuevosErrores = validar(datosForm, tarjeta);
+    const nuevosErrores = validar(datosForm);
     setErrores(nuevosErrores);
     if (Object.keys(nuevosErrores).length > 0) return;
 
     setProcesando(true);
-    // Simulamos una pequeña espera de "procesando pago"
-    setTimeout(async () => {
+    enviando.current = true;
+    {
       try {
         const pedidoCreado = await crearPedido({
           ...datosForm,
-          tarjeta: datosForm.metodoPago === 'tarjeta' ? tarjeta : undefined,
+
         });
         navigate(`/pedidos/${pedidoCreado.id}`, { state: { recienCreado: true } });
-      } catch {
-        setErrores({ general: 'No se pudo registrar el pedido. Inténtalo nuevamente.' });
+      } catch(e) {
+        setErrores({ general: e instanceof Error ? e.message : 'No se pudo registrar el pedido.' });
         setProcesando(false);
+        enviando.current = false;
       }
-    }, 800);
+    }
   };
 
   const claseInput = (campo: keyof Errores, base: string) =>
     `${base} ${errores[campo] ? 'is-invalid' : ''}`;
 
+  if (!session()) return <Navigate to="/login" replace/>;
   return (
-    <div className="container mt-4 mb-5">
+    <div className="container mt-4 mb-5"><p className="alert alert-info">Pago simulado: no se realizan cobros reales. Precios con IGV incluido; envío S/ 10.00.</p>
       <div className="border-bottom pb-3 mb-4">
         <span className="text-success text-uppercase small fw-bold d-block mb-1">Paso final</span>
         <h2 className="fw-bold text-dark mb-0">Finalizar compra</h2>
@@ -135,7 +87,7 @@ function CheckoutPage() {
 
       {errores.general && (
         <div className="alert alert-danger" role="alert">
-          {errores.general}
+          {errores.general} <button onClick={()=>window.location.reload()}>Reintentar</button>
         </div>
       )}
 
@@ -156,6 +108,7 @@ function CheckoutPage() {
                     id="direccion"
                     type="text"
                     name="direccion"
+                    maxLength={255}
                     className={claseInput('direccion', 'form-control form-control-lg border-2 rounded-3 fs-6')}
                     placeholder="Calle, número, departamento, distrito..."
                     value={datosForm.direccion}
@@ -172,6 +125,7 @@ function CheckoutPage() {
                     id="referencia"
                     type="text"
                     name="referencia"
+                    maxLength={255}
                     className="form-control border-2 rounded-3 fs-6"
                     placeholder="Ej: Frente al parque principal, portón negro"
                     value={datosForm.referencia}
@@ -198,81 +152,7 @@ function CheckoutPage() {
                   </select>
                 </div>
 
-                {datosForm.metodoPago === 'tarjeta' && (
-                  <div className="border rounded-3 p-3 bg-light">
-                    <p className="small text-muted mb-3">
-                      Pago simulado: no ingreses datos reales. Puedes usar 4242 4242 4242 4242.
-                    </p>
-                    <div className="mb-3">
-                      <label htmlFor="titular" className="form-label small fw-semibold">Titular</label>
-                      <input
-                        id="titular"
-                        name="titular"
-                        className={claseInput('titular', 'form-control')}
-                        placeholder="Como aparece en la tarjeta"
-                        value={tarjeta.titular}
-                        onChange={handleTarjetaChange}
-                      />
-                      <div className="invalid-feedback">{errores.titular}</div>
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="numero" className="form-label small fw-semibold">Número de tarjeta</label>
-                      <input
-                        id="numero"
-                        name="numero"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        className={claseInput('numero', 'form-control font-monospace')}
-                        placeholder="0000 0000 0000 0000"
-                        value={tarjeta.numero}
-                        onChange={handleTarjetaChange}
-                      />
-                      <div className="invalid-feedback">{errores.numero}</div>
-                    </div>
-                    <div className="row g-3">
-                      <div className="col-6">
-                        <label htmlFor="vencimiento" className="form-label small fw-semibold">Vencimiento</label>
-                        <input
-                          id="vencimiento"
-                          name="vencimiento"
-                          inputMode="numeric"
-                          className={claseInput('vencimiento', 'form-control')}
-                          placeholder="MM/AA"
-                          value={tarjeta.vencimiento}
-                          onChange={handleTarjetaChange}
-                        />
-                        <div className="invalid-feedback">{errores.vencimiento}</div>
-                      </div>
-                      <div className="col-6">
-                        <label htmlFor="cvv" className="form-label small fw-semibold">CVV</label>
-                        <input
-                          id="cvv"
-                          name="cvv"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          className={claseInput('cvv', 'form-control')}
-                          placeholder="123"
-                          value={tarjeta.cvv}
-                          onChange={handleTarjetaChange}
-                        />
-                        <div className="invalid-feedback">{errores.cvv}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {datosForm.metodoPago === 'transferencia' && (
-                  <div className="alert alert-info small mb-0">
-                    Al confirmar, te mostraremos el pedido como <strong>pendiente</strong> hasta que
-                    la tienda valide la transferencia (cuenta ficticia BCP 191-0000000-0-00).
-                  </div>
-                )}
-
-                {datosForm.metodoPago === 'efectivo' && (
-                  <div className="alert alert-light border small mb-0">
-                    Pagarás en efectivo al recibir tu pedido.
-                  </div>
-                )}
+                <p className="alert alert-info">Todos los métodos son simulados. No ingreses datos bancarios.</p>
               </form>
             </div>
           </div>
@@ -315,12 +195,12 @@ function CheckoutPage() {
 
                   <div className="bg-light p-3 rounded-4 border mb-4">
                     <div className="d-flex justify-content-between mb-2 small text-secondary">
-                      <span>Subtotal:</span>
+                      <span>Productos (IGV incluido):</span>
                       <span>{formatPrecio(subtotal)}</span>
                     </div>
                     <div className="d-flex justify-content-between mb-3 pb-2 border-bottom small text-secondary">
-                      <span>IGV (18%):</span>
-                      <span>{formatPrecio(igv)}</span>
+                      <span>Envío:</span>
+                      <span>{formatPrecio(envio)}</span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center fw-bold">
                       <span className="fs-5 text-dark">Total a pagar:</span>
@@ -331,13 +211,13 @@ function CheckoutPage() {
                   <button
                     type="submit"
                     form="checkout-form"
-                    disabled={procesando}
+                    disabled={procesando || !stockValidado}
                     className="btn btn-success w-100 py-3 fs-5 fw-bold rounded-3 shadow"
                   >
                     {procesando ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
-                        Procesando pago...
+                        Registrando pedido...
                       </>
                     ) : (
                       'Confirmar compra'

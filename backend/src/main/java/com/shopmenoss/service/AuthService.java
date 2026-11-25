@@ -34,9 +34,8 @@ public class AuthService {
         String correo = request.getCorreo().trim().toLowerCase();
 
         if (usuarioRepository.existsByCorreo(correo)) {
-            throw new IllegalArgumentException(
-                "Ya existe una cuenta registrada con este correo"
-            );
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Ya existe una cuenta registrada con este correo");
         }
 
         String passwordCifrada =

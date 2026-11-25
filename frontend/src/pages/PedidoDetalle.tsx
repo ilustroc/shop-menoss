@@ -74,7 +74,7 @@ function PedidoDetalle() {
 
   const [pedido, setPedido] = useState<Pedido>();
   const [cargando, setCargando] = useState(Boolean(id));
-  const [error, setError] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -87,8 +87,8 @@ function PedidoDetalle() {
       .then((pedidoEncontrado) => {
         if (activo) setPedido(pedidoEncontrado);
       })
-      .catch(() => {
-        if (activo) setError(true);
+      .catch(e => {
+        if (activo) setError(e instanceof Error ? e.message : 'No se pudo consultar el pedido.');
       })
       .finally(() => {
         if (activo) setCargando(false);
@@ -110,8 +110,9 @@ function PedidoDetalle() {
           ← Volver al Historial
         </Link>
         <div className="alert bg-danger-subtle text-danger border border-danger-subtle text-center p-4 rounded-3 shadow-sm">
-          <h4 className="alert-heading fw-bold mb-2">¡Pedido no encontrado!</h4>
-          <p className="mb-0">El identificador #{id} no coincide con ningún registro en nuestro sistema.</p>
+          <h4 className="alert-heading fw-bold mb-2">No se pudo consultar el pedido</h4>
+          <p>{error || 'Pedido no disponible para esta cuenta.'}</p>
+          <button onClick={()=>window.location.reload()}>Reintentar</button>
         </div>
       </div>
     );
@@ -187,7 +188,7 @@ function PedidoDetalle() {
                 <div className="d-flex align-items-center gap-2 mt-2">
                   <span className="badge bg-light text-dark border px-3 py-2 rounded-3">
                     {METODO_PAGO_LABELS[pedido.metodoPago]}
-                    {pedido.tarjetaUltimos4 && ` •••• ${pedido.tarjetaUltimos4}`}
+                    {' · Pago simulado, sin cobro real'}
                   </span>
                 </div>
               </div>
@@ -241,15 +242,15 @@ function PedidoDetalle() {
               <div className="row justify-content-end">
                 <div className="col-sm-6 col-md-5">
                   <div className="d-flex justify-content-between mb-2">
-                    <span className="text-muted small">Subtotal Neto:</span>
+                    <span className="text-muted small">Productos (IGV incluido):</span>
                     <span className="text-dark fw-medium">{formatPrecio(pedido.subtotal)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-3 pb-2 border-bottom">
-                    <span className="text-muted small">IGV Impuestos (18%):</span>
-                    <span className="text-dark fw-medium">{formatPrecio(pedido.igv)}</span>
+                    <span className="text-muted small">Envío:</span>
+                    <span className="text-dark fw-medium">{formatPrecio(pedido.envio)}</span>
                   </div>
                   <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-dark fw-bold fs-5 text-nowrap me-3">Total facturado:</span>
+                    <span className="text-dark fw-bold fs-5 text-nowrap me-3">Total del pedido:</span>
                     <span className="text-primary fw-bold fs-4 font-monospace text-nowrap">
                       {formatPrecio(pedido.total)}
                     </span>

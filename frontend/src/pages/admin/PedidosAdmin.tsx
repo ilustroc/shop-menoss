@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { EstadoPedido } from '../../types/pedido';
 import type { AdminPedidoDetalle, AdminPedidoResumen } from '../../types/adminPedido';
 import {
@@ -17,15 +17,6 @@ import {
 
 const ESTADOS: EstadoPedido[] = ['pendiente', 'confirmado', 'preparando', 'entregado', 'cancelado'];
 
-// Mismas reglas que ReglasEstadoPedido.java (el backend vuelve a validarlas).
-const SIGUIENTES: Record<EstadoPedido, EstadoPedido[]> = {
-  pendiente: ['confirmado', 'cancelado'],
-  confirmado: ['preparando', 'cancelado'],
-  preparando: ['entregado', 'cancelado'],
-  entregado: [],
-  cancelado: [],
-};
-
 function PedidosAdmin() {
   const [pedidos, setPedidos] = useState<AdminPedidoResumen[]>([]);
   const [filtro, setFiltro] = useState<EstadoPedido | ''>('');
@@ -35,6 +26,8 @@ function PedidosAdmin() {
   const [aviso, setAviso] = useState('');
   const [abierto, setAbierto] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<AdminPedidoDetalle | null>(null);
+  // Último pedido cuyo detalle se pidió: si llega la respuesta de otro (clics rápidos), se ignora.
+  const detalleSolicitado = useRef<string | null>(null);
 
   const cargar = useCallback(async (estado: EstadoPedido | '') => {
     setCargando(true);
@@ -60,25 +53,35 @@ function PedidosAdmin() {
     };
   }, [filtro]);
 
+  const cerrarDetalle = () => {
+    detalleSolicitado.current = null;
+    setAbierto(null);
+    setDetalle(null);
+  };
+
   const cambiarFiltro = (estado: EstadoPedido | '') => {
     setCargando(true);
     setError('');
-    setAbierto(null);
+    cerrarDetalle();
     setFiltro(estado);
   };
 
   const verDetalle = async (id: string) => {
     if (abierto === id) {
-      setAbierto(null);
+      cerrarDetalle();
       return;
     }
+    detalleSolicitado.current = id;
     setAbierto(id);
     setDetalle(null);
     try {
-      setDetalle(await obtenerPedido(id));
+      const datos = await obtenerPedido(id);
+      if (detalleSolicitado.current === id) setDetalle(datos);
     } catch (e) {
-      setError(mensajeError(e));
-      setAbierto(null);
+      if (detalleSolicitado.current === id) {
+        setError(mensajeError(e));
+        cerrarDetalle();
+      }
     }
   };
 
@@ -96,9 +99,13 @@ function PedidosAdmin() {
     try {
       const actualizado = await cambiarEstadoPedido(pedido.id, estado);
       setPedidos((lista) =>
-        lista.map((p) => (p.id === pedido.id ? { ...p, estado: actualizado.estado } : p)),
+        lista.map((p) =>
+          p.id === pedido.id
+            ? { ...p, estado: actualizado.estado, estadosPermitidos: actualizado.estadosPermitidos }
+            : p,
+        ),
       );
-      if (abierto === pedido.id) setDetalle(actualizado);
+      if (detalleSolicitado.current === pedido.id) setDetalle(actualizado);
       setAviso(
         `Pedido #${pedido.id} actualizado a "${ESTADO_LABELS[actualizado.estado]}".` +
           (estado === 'cancelado' ? ' El stock fue devuelto al inventario.' : ''),
@@ -106,6 +113,8 @@ function PedidosAdmin() {
       if (filtro && filtro !== actualizado.estado) await cargar(filtro);
     } catch (e) {
       setError(mensajeError(e));
+      // El backend rechazó el cambio (por ejemplo, otro administrador ya lo cambió): recargar
+      await cargar(filtro);
     } finally {
       setProcesando(null);
     }
@@ -151,70 +160,67 @@ function PedidosAdmin() {
               </tr>
             </thead>
             <tbody>
-              {pedidos.map((p) => {
-                const siguientes = SIGUIENTES[p.estado];
-                return (
-                  <Fragment key={p.id}>
+              {pedidos.map((p) => (
+                <Fragment key={p.id}>
+                  <tr>
+                    <td>#{p.id}</td>
+                    <td>{p.fecha ? formatFecha(p.fecha) : '—'}</td>
+                    <td>{METODO_PAGO_LABELS[p.metodoPago] ?? p.metodoPago}</td>
+                    <td className="text-end">{p.cantidadProductos}</td>
+                    <td className="text-end">{formatPrecio(p.total)}</td>
+                    <td><span className={`badge ${ESTADO_BADGE_CLASS[p.estado]}`}>{ESTADO_LABELS[p.estado]}</span></td>
+                    <td>
+                      {p.estadosPermitidos.length === 0 ? (
+                        <span className="small text-muted">Estado final</span>
+                      ) : (
+                        <select
+                          className="form-select form-select-sm"
+                          value=""
+                          disabled={procesando !== null}
+                          onChange={(e) => void cambiar(p, e.target.value as EstadoPedido)}
+                          aria-label={`Cambiar estado del pedido ${p.id}`}
+                        >
+                          <option value="" disabled>{procesando === p.id ? 'Guardando…' : 'Elegir…'}</option>
+                          {p.estadosPermitidos.map((e) => (
+                            <option key={e} value={e}>{ESTADO_LABELS[e]}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    <td className="text-end">
+                      <button className="btn btn-sm btn-outline-primary" onClick={() => void verDetalle(p.id)}>
+                        {abierto === p.id ? 'Ocultar' : 'Ver detalle'}
+                      </button>
+                    </td>
+                  </tr>
+                  {abierto === p.id && (
                     <tr>
-                      <td>#{p.id}</td>
-                      <td>{p.fecha ? formatFecha(p.fecha) : '—'}</td>
-                      <td>{METODO_PAGO_LABELS[p.metodoPago] ?? p.metodoPago}</td>
-                      <td className="text-end">{p.cantidadProductos}</td>
-                      <td className="text-end">{formatPrecio(p.total)}</td>
-                      <td><span className={`badge ${ESTADO_BADGE_CLASS[p.estado]}`}>{ESTADO_LABELS[p.estado]}</span></td>
-                      <td>
-                        {siguientes.length === 0 ? (
-                          <span className="small text-muted">Estado final</span>
+                      <td colSpan={8} className="bg-light">
+                        {!detalle || detalle.id !== p.id ? (
+                          <span className="text-muted">Cargando detalle…</span>
                         ) : (
-                          <select
-                            className="form-select form-select-sm"
-                            value=""
-                            disabled={procesando === p.id}
-                            onChange={(e) => void cambiar(p, e.target.value as EstadoPedido)}
-                            aria-label={`Cambiar estado del pedido ${p.id}`}
-                          >
-                            <option value="" disabled>{procesando === p.id ? 'Guardando…' : 'Elegir…'}</option>
-                            {siguientes.map((e) => (
-                              <option key={e} value={e}>{ESTADO_LABELS[e]}</option>
-                            ))}
-                          </select>
+                          <>
+                            <div className="mb-2">
+                              <strong>Dirección:</strong> {detalle.direccion}
+                              {detalle.referencia && <> ({detalle.referencia})</>}
+                            </div>
+                            <ul className="mb-2">
+                              {detalle.detalles.map((d) => (
+                                <li key={d.productoId}>
+                                  {d.cantidad} x {d.nombre} — {formatPrecio(d.precioUnitario * d.cantidad)}
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="text-muted">
+                              Productos {formatPrecio(detalle.subtotal)} · Envío {formatPrecio(detalle.envio)} · Total {formatPrecio(detalle.total)} · Pago simulado
+                            </div>
+                          </>
                         )}
                       </td>
-                      <td className="text-end">
-                        <button className="btn btn-sm btn-outline-primary" onClick={() => void verDetalle(p.id)}>
-                          {abierto === p.id ? 'Ocultar' : 'Ver detalle'}
-                        </button>
-                      </td>
                     </tr>
-                    {abierto === p.id && (
-                      <tr>
-                        <td colSpan={8} className="bg-light">
-                          {!detalle ? (
-                            <span className="text-muted">Cargando detalle…</span>
-                          ) : (
-                            <>
-                              <div className="mb-2">
-                                <strong>Dirección:</strong> {detalle.direccion}
-                                {detalle.referencia && <> ({detalle.referencia})</>}
-                              </div>
-                              <ul className="mb-2">
-                                {detalle.detalles.map((d) => (
-                                  <li key={d.productoId}>
-                                    {d.cantidad} x {d.nombre} — {formatPrecio(d.precioUnitario * d.cantidad)}
-                                  </li>
-                                ))}
-                              </ul>
-                              <div className="text-muted">
-                                Subtotal {formatPrecio(detalle.subtotal)} · Envío {formatPrecio(detalle.envio)} · Total {formatPrecio(detalle.total)}
-                              </div>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
+                  )}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>

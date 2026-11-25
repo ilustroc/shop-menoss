@@ -1,7 +1,11 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
+import api from '../services/api';
+import { saveSession } from '../services/session';
 function Login() {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
   const [correo, setCorreo] = useState('')
   const [password, setPassword] = useState('')
   const [mostrarPassword, setMostrarPassword] = useState(false)
@@ -12,7 +16,7 @@ function Login() {
     return expresion.test(valor)
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     setError('')
@@ -44,9 +48,14 @@ function Login() {
       return
     }
 
-// Más adelante enviaremos estos datos al backend.
-
-    // Más adelante enviaremos estos datos al backend.
+    if (busy) return;
+    setBusy(true);
+    try {
+      const {data} = await api.post('/auth/login', {correo:correoLimpio,password});
+      saveSession(data);
+      navigate(data.rol === 'ADMINISTRADOR' ? '/admin' : '/productos');
+    } catch(e) { setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión'); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -132,14 +141,6 @@ function Login() {
                     </div>
                   </div>
 
-                  <div className="text-end mb-4">
-                    <button
-                      type="button"
-                      className="btn btn-link text-decoration-none p-0 small"
-                    >
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  </div>
 
                   {error && (
                     <div
@@ -151,7 +152,7 @@ function Login() {
                   )}
 
                   <button
-                    type="submit"
+                    type="submit" disabled={busy}
                     className="btn btn-primary btn-lg w-100 fw-semibold"
                   >
                     Iniciar sesión

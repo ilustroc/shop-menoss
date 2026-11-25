@@ -24,8 +24,6 @@ export interface Pedido {
   direccion: string;
   referencia?: string;
   metodoPago: MetodoPago;
-  /** Solo los últimos 4 dígitos de la tarjeta simulada (nunca el número completo). */
-  tarjetaUltimos4?: string;
   detalles: DetallePedido[];
   subtotal: number;
   envio: number;
@@ -33,17 +31,8 @@ export interface Pedido {
   total: number;
 }
 
-/** Datos de una tarjeta ficticia. Solo se validan en el formulario, no se guardan. */
-export interface DatosTarjeta {
-  titular: string;
-  numero: string;
-  vencimiento: string; // MM/AA
-  cvv: string;
-}
-
 export interface DatosCompra {
   direccion: string;
   referencia?: string;
   metodoPago: MetodoPago;
-  tarjeta?: DatosTarjeta;
 }

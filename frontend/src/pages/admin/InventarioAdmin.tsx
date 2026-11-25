@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ItemInventario } from '../../types/inventario';
-import { actualizarStock, listarInventario } from '../../services/inventarioService';
+import { actualizarStock, esConflictoDeStock, listarInventario } from '../../services/inventarioService';
 import { mensajeError } from '../../services/pedidoAdminService';
 
 function InventarioAdmin() {
@@ -9,11 +9,11 @@ function InventarioAdmin() {
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
   const [editando, setEditando] = useState<Record<number, string>>({});
 
   const cargar = useCallback(async () => {
     setCargando(true);
-    setError('');
     try {
       setItems(await listarInventario());
     } catch (e) {
@@ -42,8 +42,10 @@ function InventarioAdmin() {
     }
     setProcesando(item.productoId);
     setError('');
+    setAviso('');
     try {
-      const actualizado = await actualizarStock(item.productoId, nuevoStock);
+      // Se envía el stock que se estaba viendo para no pisar compras hechas mientras tanto
+      const actualizado = await actualizarStock(item.productoId, nuevoStock, item.stock);
       setItems((lista) => lista.map((i) => (i.productoId === item.productoId ? actualizado : i)));
       setEditando((valores) => {
         const copia = { ...valores };
@@ -52,6 +54,10 @@ function InventarioAdmin() {
       });
     } catch (e) {
       setError(mensajeError(e));
+      if (esConflictoDeStock(e)) {
+        setAviso('Se recargó el inventario con los valores actuales.');
+        await cargar();
+      }
     } finally {
       setProcesando(null);
     }
@@ -77,13 +83,22 @@ function InventarioAdmin() {
               Solo stock bajo ({totalBajo})
             </label>
           </div>
-          <button className="btn btn-sm btn-outline-secondary" onClick={() => void cargar()} disabled={cargando}>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => {
+              setError('');
+              setAviso('');
+              void cargar();
+            }}
+            disabled={cargando}
+          >
             Actualizar
           </button>
         </div>
       </div>
 
       {error && <div className="alert alert-danger" role="alert">{error}</div>}
+      {aviso && <div className="alert alert-info" role="status">{aviso}</div>}
 
       {cargando ? (
         <p className="text-muted">Cargando inventario…</p>
@@ -123,7 +138,7 @@ function InventarioAdmin() {
                           <button
                             key={delta}
                             className="btn btn-outline-secondary"
-                            disabled={ocupado || item.stock + delta < 0}
+                            disabled={procesando !== null || item.stock + delta < 0}
                             onClick={() => void guardar(item, item.stock + delta)}
                           >
                             {delta > 0 ? `+${delta}` : delta}
@@ -150,7 +165,7 @@ function InventarioAdmin() {
                           aria-label={`Nuevo stock de ${item.nombre}`}
                           onChange={(e) => setEditando((m) => ({ ...m, [item.productoId]: e.target.value }))}
                         />
-                        <button className="btn btn-sm btn-primary" disabled={ocupado || valor === ''}>
+                        <button className="btn btn-sm btn-primary" disabled={procesando !== null || valor === ''}>
                           {ocupado ? '…' : 'Guardar'}
                         </button>
                       </form>
