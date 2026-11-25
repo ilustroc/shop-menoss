@@ -1,79 +1,77 @@
-  import api from './api';
+import api from './api';
 import type { Producto } from '../types/producto';
-import { listarCategorias } from './categoriaService';
+import {
+  aCuerpoApi,
+  aProducto,
+  type ProductoAdmin,
+  type ProductoAPI,
+  type ProductoInput,
+} from './productoMapper';
 
-interface ProductoAPI {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  precio: number;
-  stock: number;
-  imagenUrl: string | null;
-  categoriaId: number;
-  categoriaNombre: string;
-  activo: boolean;
-}
+export type { ProductoAdmin, ProductoInput } from './productoMapper';
+export { aInput } from './productoMapper';
 
-function mapearProducto(producto: ProductoAPI): Producto {
+const IMAGEN_POR_DEFECTO = '/images/products/placeholder.png';
+
+function mapearProductoCatalogo(
+  producto: ProductoAPI
+): Producto {
   return {
-    ...producto,
-    imagen: producto.imagenUrl || '/images/products/placeholder.png',
+    id: producto.id,
+    nombre: producto.nombre,
+    descripcion: producto.descripcion ?? '',
+    precio: producto.precio,
+    stock: producto.stock,
+    imagen: producto.imagenUrl || IMAGEN_POR_DEFECTO,
     categoria: producto.categoriaNombre,
   };
 }
 
+// GET /api/productos es público. El parámetro incluirInactivos
+// solo debe usarlo la administración.
 export async function listarProductos(
   incluirInactivos = true
-): Promise<Producto[]> {
+): Promise<ProductoAdmin[]> {
   const { data } = await api.get<ProductoAPI[]>('/productos', {
     params: { incluirInactivos },
   });
 
-  return data.map(mapearProducto);
+  return data.map(aProducto);
 }
 
 export async function listarProductosCatalogo(): Promise<Producto[]> {
-  return listarProductos(false);
-}
+  const { data } = await api.get<ProductoAPI[]>('/productos', {
+    params: { incluirInactivos: false },
+  });
 
-async function construirBody(producto: Omit<Producto, 'id'>) {
-  const categorias = await listarCategorias();
-  const categoria = categorias.find(
-    (item) => item.nombre === producto.categoria
-  );
-
-  if (!categoria) {
-    throw new Error('Selecciona una categoría válida');
-  }
-
-  return {
-    nombre: producto.nombre,
-    descripcion: producto.descripcion,
-    precio: producto.precio,
-    stock: producto.stock,
-    imagenUrl: producto.imagen,
-    activo: producto.activo,
-    categoriaId: categoria.id,
-  };
+  return data.map(mapearProductoCatalogo);
 }
 
 export async function crearProducto(
-  producto: Omit<Producto, 'id'>
-): Promise<Producto> {
-  const body = await construirBody(producto);
-  const { data } = await api.post<ProductoAPI>('/productos', body);
+  producto: ProductoInput
+): Promise<ProductoAdmin> {
+  const { data } = await api.post<ProductoAPI>(
+    '/productos',
+    aCuerpoApi(producto)
+  );
 
-  return mapearProducto(data);
+  return aProducto(data);
 }
 
 export async function actualizarProducto(
   id: number,
-  producto: Omit<Producto, 'id'>
-): Promise<void> {
-  const body = await construirBody(producto);
-  await api.put(`/productos/${id}`, body);
+  producto: ProductoInput
+): Promise<ProductoAdmin> {
+  const { data } = await api.put<ProductoAPI>(
+    `/productos/${id}`,
+    aCuerpoApi(producto)
+  );
+
+  return aProducto(data);
 }
 
+// Baja lógica: el backend marca el producto como inactivo
+// y conserva el historial.
 export async function eliminarProducto(id: number): Promise<void> {
   await api.delete(`/productos/${id}`);
 }
@@ -82,11 +80,9 @@ export async function ajustarStock(
   id: number,
   delta: number
 ): Promise<void> {
-  const { data: producto } = await api.get<ProductoAPI>(
-    `/productos/${id}`
-  );
+  const { data } = await api.get<ProductoAPI>(`/productos/${id}`);
 
   await api.put(`/productos/${id}/stock`, {
-    stock: Math.max(0, producto.stock + delta),
+    stock: Math.max(0, data.stock + delta),
   });
 }
