@@ -2,29 +2,61 @@
 import React, { useState, useMemo, useEffect } from "react";
 import ProductGrid from "../components/ProductGrid";
 import { agregarAlCarrito } from "../services/carritoService";
+import { listarProductosCatalogo } from "../services/productoService";
 import type { Producto } from "../types/producto";
-import { listarProductos } from "../services/productoService";
 
 const Productos: React.FC = () => {
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [error, setError] = useState('');
-  const [mensaje, setMensaje] = useState('');
   const [cargando, setCargando] = useState(true);
-  useEffect(() => { listarProductos(false).then(setProductos).catch(e=>setError(e.message)).finally(()=>setCargando(false)); }, []);
+  const [errorCatalogo, setErrorCatalogo] = useState("");
+  const [errorCarrito, setErrorCarrito] = useState("");
+  const [mensaje, setMensaje] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("Todas");
+  const [categoriaSeleccionada, setCategoriaSeleccionada] =
+    useState("Todas");
 
-  // Categorías únicas sacadas de los productos, más la opción "Todas"
+  useEffect(() => {
+    let activo = true;
+
+    listarProductosCatalogo()
+      .then((productosCargados) => {
+        if (activo) {
+          setProductos(productosCargados);
+        }
+      })
+      .catch(() => {
+        if (activo) {
+          setErrorCatalogo(
+            "No se pudo cargar el catálogo. Inténtalo nuevamente."
+          );
+        }
+      })
+      .finally(() => {
+        if (activo) {
+          setCargando(false);
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
   const categorias = useMemo(() => {
-    const unicas = Array.from(new Set(productos.map((p) => p.categoria)));
+    const unicas = Array.from(
+      new Set(productos.map((producto) => producto.categoria))
+    );
+
     return ["Todas", ...unicas];
   }, [productos]);
 
   const productosFiltrados = useMemo(() => {
+    const textoBusqueda = busqueda.trim().toLowerCase();
+
     return productos.filter((producto) => {
       const coincideBusqueda = producto.nombre
         .toLowerCase()
-        .includes(busqueda.toLowerCase());
+        .includes(textoBusqueda);
 
       const coincideCategoria =
         categoriaSeleccionada === "Todas" ||
@@ -32,21 +64,39 @@ const Productos: React.FC = () => {
 
       return coincideBusqueda && coincideCategoria;
     });
-  }, [busqueda, categoriaSeleccionada, productos]);
+  }, [productos, busqueda, categoriaSeleccionada]);
 
   const handleAgregar = (producto: Producto) => {
-    setError(''); setMensaje('');
-    try { agregarAlCarrito(producto); setMensaje(`${producto.nombre} agregado al carrito.`); }
-    catch(e) {setError(e instanceof Error ? e.message : 'Stock insuficiente');}
+    setErrorCarrito("");
+    setMensaje("");
+
+    try {
+      agregarAlCarrito(producto);
+      setMensaje(`${producto.nombre} agregado al carrito.`);
+    } catch (error) {
+      setErrorCarrito(
+        error instanceof Error
+          ? error.message
+          : "No se pudo agregar el producto al carrito."
+      );
+    }
   };
 
   return (
     <div className="container py-4">
       <h1 className="mb-4">Productos</h1>
-      {cargando && <p>Cargando productos…</p>}
-      {mensaje && <p role="status" className="alert alert-success">{mensaje}</p>}
-      {error && <div role="alert" className="alert alert-danger">{error} <button onClick={()=>window.location.reload()}>Reintentar</button></div>}
-      {!cargando && !error && productos.length===0 && <p>No hay productos disponibles.</p>}
+
+      {mensaje && (
+        <div role="status" className="alert alert-success">
+          {mensaje}
+        </div>
+      )}
+
+      {errorCarrito && (
+        <div role="alert" className="alert alert-warning">
+          {errorCarrito}
+        </div>
+      )}
 
       <div className="row mb-4 g-3">
         <div className="col-12 col-md-6">
@@ -54,26 +104,57 @@ const Productos: React.FC = () => {
             type="text"
             className="form-control"
             placeholder="Buscar producto..."
+            aria-label="Buscar producto"
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(event) => setBusqueda(event.target.value)}
+            disabled={cargando || Boolean(errorCatalogo)}
           />
         </div>
+
         <div className="col-12 col-md-6">
           <select
             className="form-select"
+            aria-label="Filtrar por categoría"
             value={categoriaSeleccionada}
-            onChange={(e) => setCategoriaSeleccionada(e.target.value)}
+            onChange={(event) =>
+              setCategoriaSeleccionada(event.target.value)
+            }
+            disabled={cargando || Boolean(errorCatalogo)}
           >
-            {categorias.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            {categorias.map((categoria) => (
+              <option key={categoria} value={categoria}>
+                {categoria}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      <ProductGrid productos={productosFiltrados} onAgregar={handleAgregar} />
+      {cargando ? (
+        <div className="alert alert-info" role="status">
+          Cargando productos...
+        </div>
+      ) : errorCatalogo ? (
+        <div className="alert alert-danger" role="alert">
+          <p className="mb-2">{errorCatalogo}</p>
+          <button
+            type="button"
+            className="btn btn-outline-danger btn-sm"
+            onClick={() => window.location.reload()}
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : productos.length === 0 ? (
+        <p>No hay productos disponibles.</p>
+      ) : productosFiltrados.length === 0 ? (
+        <p>No se encontraron productos con esos filtros.</p>
+      ) : (
+        <ProductGrid
+          productos={productosFiltrados}
+          onAgregar={handleAgregar}
+        />
+      )}
     </div>
   );
 };

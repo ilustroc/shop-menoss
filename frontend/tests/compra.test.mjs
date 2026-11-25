@@ -16,9 +16,10 @@ test('Importes en soles con IGV incluido y un solo envío', () => {
 test('El carrito conserva IDs y cantidades, rechaza agotados y exceso de stock', () => {
   const producto = { id: 429, nombre: 'Producto', precio: 9.9, stock: 2 };
   agregarAlCarrito(producto);
-  aumentarCantidad(producto.id);
+  aumentarCantidad(producto.id, producto.stock);
   assert.equal(leerCarrito()[0].cantidad, 2);
-  assert.throws(() => aumentarCantidad(producto.id));
+  assert.throws(() => aumentarCantidad(producto.id, producto.stock));
+  assert.throws(() => aumentarCantidad(producto.id, -1));
   assert.throws(() => agregarAlCarrito(producto));
   assert.throws(() => agregarAlCarrito({ ...producto, id: 430, stock: 0 }));
   disminuirCantidad(producto.id);
@@ -26,6 +27,7 @@ test('El carrito conserva IDs y cantidades, rechaza agotados y exceso de stock',
   assert.equal(leerCarrito()[0].id, 429);
   eliminarDelCarrito(producto.id);
   assert.deepEqual(leerCarrito(), []);
+  assert.throws(() => aumentarCantidad(producto.id, producto.stock));
 });
 
 test('Actualizar un producto en carrito refresca el precio y el stock del catálogo', () => {
@@ -33,5 +35,6 @@ test('Actualizar un producto en carrito refresca el precio y el stock del catál
   agregarAlCarrito({ id: 429, nombre: 'Producto', precio: 12.5, stock: 2 });
   assert.equal(leerCarrito()[0].precio, 12.5);
   assert.equal(leerCarrito()[0].stock, 2);
-  assert.throws(() => aumentarCantidad(429));
+  assert.throws(() => aumentarCantidad(429, 2));
+  assert.equal(leerCarrito()[0].cantidad, 2);
 });
