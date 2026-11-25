@@ -1,3 +1,3 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { session } from '../services/session';
-export default function AdminRoute(){return session()?.rol === 'ADMINISTRADOR' ? <Outlet/> : <Navigate to="/login" replace/>;}
+import { esAdministrador } from '../services/session';
+export default function AdminRoute(){return esAdministrador() ? <Outlet/> : <Navigate to="/login" replace/>;}
