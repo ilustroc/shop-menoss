@@ -17,6 +17,16 @@
       "type": "string"
     },
     {
+      "key": "jwtCliente",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jwtAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "productoId",
       "value": "1",
       "type": "string"
@@ -206,6 +216,7 @@
                   "});",
                   "if (data && data.token) {",
                   "  pm.collectionVariables.set('jwtToken', data.token);",
+                  "  pm.collectionVariables.set('jwtCliente', data.token);",
                   "  if (pm.environment && pm.environment.name) {",
                   "    pm.environment.set('jwtToken', data.token);",
                   "  }",
@@ -264,6 +275,7 @@
                   "});",
                   "if (data && data.token) {",
                   "  pm.collectionVariables.set('jwtToken', data.token);",
+                  "  pm.collectionVariables.set('jwtAdmin', data.token);",
                   "  if (pm.environment && pm.environment.name) {",
                   "    pm.environment.set('jwtToken', data.token);",
                   "  }",
@@ -1523,7 +1535,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{jwtToken}}",
+                  "value": "{{jwtCliente}}",
                   "type": "string"
                 }
               ]
@@ -1540,7 +1552,7 @@
                 "pedidos"
               ]
             },
-            "description": "Ejecutar tras iniciar sesión con un usuario de rol `CLIENTE`: verifica que Spring Security devuelva 403 Forbidden (o 200 si el token actual es de ADMINISTRADOR)."
+            "description": "Ejecutar después de `POST Login y captura de JWT`: usa el token capturado para CLIENTE y verifica que Spring Security devuelva 403 Forbidden."
           },
           "event": [
             {
@@ -1548,9 +1560,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Código HTTP 403 Forbidden para CLIENTE (o 200 si jwtToken es ADMINISTRADOR)', () => {",
-                  "  pm.expect([403, 200]).to.include(pm.response.code);",
-                  "});",
+                  "pm.test('Código HTTP 403 Forbidden para CLIENTE', () => pm.response.to.have.status(403));",
+                  "pm.test('Error JSON comprensible', () => pm.expect(pm.response.json().error).to.exist);",
                   "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));"
                 ]
               }
