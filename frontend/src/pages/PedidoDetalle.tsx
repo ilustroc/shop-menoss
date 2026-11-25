@@ -72,39 +72,33 @@ function PedidoDetalle() {
     (location.state as { recienCreado?: boolean } | null)?.recienCreado
   );
 
-  const [pedido, setPedido] = useState<Pedido>();
-  const [cargando, setCargando] = useState(Boolean(id));
-  const [error, setError] = useState(false);
-  const [noEncontrado, setNoEncontrado] = useState(false);
+  const [resultado, setResultado] = useState<{
+    id: string;
+    pedido?: Pedido;
+    error: boolean;
+  }>();
+  const resultadoActual = resultado?.id === id ? resultado : undefined;
+  const pedido = resultadoActual?.pedido;
+  const cargando = Boolean(id) && !resultadoActual;
+  const error = resultadoActual?.error ?? false;
+  const noEncontrado =
+    !id ||
+    Boolean(
+      resultadoActual && !resultadoActual.error && !resultadoActual.pedido
+    );
 
   useEffect(() => {
     let activo = true;
 
-    if (!id) {
-      setNoEncontrado(true);
-      setCargando(false);
-      return;
-    }
-
-    setCargando(true);
-    setError(false);
-    setNoEncontrado(false);
-    setPedido(undefined);
+    if (!id) return;
 
     getPedidoById(id)
       .then((pedidoEncontrado) => {
         if (!activo) return;
-        if (pedidoEncontrado) {
-          setPedido(pedidoEncontrado);
-        } else {
-          setNoEncontrado(true);
-        }
+        setResultado({ id, pedido: pedidoEncontrado, error: false });
       })
       .catch(() => {
-        if (activo) setError(true);
-      })
-      .finally(() => {
-        if (activo) setCargando(false);
+        if (activo) setResultado({ id, error: true });
       });
 
     return () => {

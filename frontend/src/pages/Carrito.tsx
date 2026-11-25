@@ -15,32 +15,32 @@ import { listarProductosCatalogo } from '../services/productoService'
 const COSTO_ENVIO_ESTIMADO = 10000
 
 function Carrito() {
-  const [items, setItems] = useState<CartItem[]>([])
+  const [estadoInicialCarrito] = useState(() => {
+    try {
+      return { items: leerCarrito(), error: null as string | null }
+    } catch (error) {
+      return {
+        items: [],
+        error:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo leer el carrito guardado.',
+      }
+    }
+  })
+  const [items, setItems] = useState<CartItem[]>(estadoInicialCarrito.items)
   const [productos, setProductos] = useState<Producto[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [cargando, setCargando] = useState(!estadoInicialCarrito.error)
   const [catalogoVerificado, setCatalogoVerificado] = useState(false)
-  const [errorCatalogo, setErrorCatalogo] = useState<string | null>(null)
+  const [errorCatalogo, setErrorCatalogo] = useState<string | null>(
+    estadoInicialCarrito.error
+  )
   const [mensaje, setMensaje] = useState<string | null>(null)
 
   useEffect(() => {
+    if (estadoInicialCarrito.error) return
+
     let activo = true
-
-    try {
-      setItems(leerCarrito())
-    } catch (error) {
-      if (activo) {
-        setErrorCatalogo(
-          error instanceof Error
-            ? error.message
-            : 'No se pudo leer el carrito guardado.'
-        )
-        setCargando(false)
-      }
-
-      return () => {
-        activo = false
-      }
-    }
 
     listarProductosCatalogo()
       .then((productosActuales) => {
@@ -64,7 +64,7 @@ function Carrito() {
     return () => {
       activo = false
     }
-  }, [])
+  }, [estadoInicialCarrito.error])
 
   const productosPorId = new Map(
     productos.map((producto) => [producto.id, producto])
