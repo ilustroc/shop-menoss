@@ -3,9 +3,13 @@ package com.shopmenoss.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
+
 public record ActualizarStockRequest(
         @NotNull(message = "El stock es obligatorio")
         @Min(value = 0, message = "El stock no puede ser negativo")
-        Integer stock
+        Integer stock,
+
+        @Min(value = 0, message = "El stock anterior no puede ser negativo")
+        Integer stockAnterior
 ) {
 }
