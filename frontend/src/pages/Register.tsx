@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import api from '../services/api';
 function Register() {
+  const [busy, setBusy] = useState(false);
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
   const [correo, setCorreo] = useState('')
@@ -37,7 +39,7 @@ function Register() {
     )
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     setError('')
@@ -89,7 +91,14 @@ function Register() {
       return
     }
 
-    setMensaje('Formulario validado correctamente.')
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.post('/auth/registro', {nombre:nombreLimpio,apellido:apellidoLimpio,correo:correoLimpio,password});
+      setMensaje('Cuenta creada. Ya puedes iniciar sesión.');
+      setPassword(''); setConfirmarPassword('');
+    } catch(e) { setError(e instanceof Error ? e.message : 'No se pudo registrar'); }
+    finally { setBusy(false); }
 
   }
 
@@ -277,7 +286,7 @@ function Register() {
                   )}
 
                   <button
-                    type="submit"
+                    type="submit" disabled={busy}
                     className="btn btn-primary btn-lg w-100 fw-semibold"
                   >
                     Crear cuenta

@@ -26,16 +26,18 @@ export function agregarAlCarrito(producto: {
   id: number
   nombre: string
   precio: number
+  stock: number
 }): CartItem[] {
   const carrito = leerCarrito()
   const productoExistente = carrito.find((item) => item.id === producto.id)
 
+  if ((productoExistente?.cantidad || 0) >= producto.stock) throw new Error('No hay stock suficiente');
   let carritoActualizado: CartItem[]
 
   if (productoExistente) {
     carritoActualizado = carrito.map((item) =>
       item.id === producto.id
-        ? { ...item, cantidad: item.cantidad + 1 }
+        ? { ...item, cantidad: item.cantidad + 1, precio: producto.precio, stock: producto.stock }
         : item
     )
   } else {
@@ -46,6 +48,7 @@ export function agregarAlCarrito(producto: {
         nombre: producto.nombre,
         precio: producto.precio,
         cantidad: 1,
+        stock: producto.stock,
       },
     ]
   }
@@ -55,6 +58,8 @@ export function agregarAlCarrito(producto: {
 }
 
 export function aumentarCantidad(id: number): CartItem[] {
+  const actual = leerCarrito().find(i=>i.id===id);
+  if (actual && actual.cantidad >= (actual.stock ?? 0)) throw new Error('Revisa el stock en el catálogo antes de aumentar');
   const carritoActualizado = leerCarrito().map((item) =>
     item.id === id
       ? { ...item, cantidad: item.cantidad + 1 }
