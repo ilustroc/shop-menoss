@@ -11,6 +11,7 @@ import NotFound from "../pages/NotFound";
 import Contacto from "../pages/Contacto";
 
 import AdminRoute from "./AdminRoute";
+import AuthRoute from "./AuthRoute";
 import AdminLayout from "../components/admin/AdminLayout";
 import DashboardAdmin from "../pages/admin/DashboardAdmin";
 import ProductosAdmin from "../pages/admin/ProductosAdmin";
@@ -26,9 +27,11 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Register />} />
       <Route path="/carrito" element={<Carrito />} />
-      <Route path="/pedidos" element={<Pedidos />} />
-      <Route path="/pedidos/:id" element={<PedidoDetalle />} />
-      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route element={<AuthRoute />}>
+        <Route path="/pedidos" element={<Pedidos />} />
+        <Route path="/pedidos/:id" element={<PedidoDetalle />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+      </Route>
       <Route path="/contacto" element={<Contacto />} />
 
       {/* Rutas de administrador */}

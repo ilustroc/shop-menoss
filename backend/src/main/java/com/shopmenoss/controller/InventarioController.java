@@ -38,6 +38,6 @@ public class InventarioController {
             @PathVariable Long id,
             @Valid @RequestBody ActualizarStockRequest request
     ) {
-        return inventarioService.actualizarStock(id, request.stock());
+        return inventarioService.actualizarStock(id, request.stock(), request.stockAnterior());
     }
 }
