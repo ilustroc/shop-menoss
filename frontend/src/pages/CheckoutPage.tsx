@@ -32,26 +32,11 @@ function leerCarritoInicial(): {
 }
 
 function mensajeErrorCreacion(error: unknown): string {
-  if (axios.isAxiosError<{ message?: unknown; detail?: unknown }>(error)) {
-    if (error.response?.status === 401) {
-      return 'Tu sesión no es válida o ha vencido. Vuelve a iniciar sesión.';
-    }
-
-    if (error.response?.status === 403) {
-      return 'No tienes permiso para realizar esta operación.';
-    }
-
-    const respuesta = error.response?.data;
-
-    if (typeof respuesta?.message === 'string') {
-      return respuesta.message;
-    }
-
-    if (typeof respuesta?.detail === 'string') {
-      return respuesta.detail;
-    }
-
-    return 'No se pudo registrar el pedido. Revisa tu conexión y el estado de tu compra antes de reintentar.';
+  if (axios.isAxiosError(error)) {
+    return (
+      error.message ||
+      'No se pudo registrar el pedido. Revisa tu conexión y el estado de tu compra antes de reintentar.'
+    );
   }
 
   return error instanceof Error

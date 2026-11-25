@@ -101,39 +101,59 @@ function PedidoDetalle() {
       ?.recienCreado
   );
 
-  const [resultado, setResultado] = useState<ResultadoConsulta>({
-    estado: 'cargando',
+  const [consulta, setConsulta] = useState<{
+    id: string | undefined;
+    resultado: ResultadoConsulta;
+  }>({
+    id: undefined,
+    resultado: { estado: 'cargando' },
   });
+  const resultado =
+    consulta.id === id
+      ? consulta.resultado
+      : { estado: 'cargando' as const };
 
   useEffect(() => {
-    if (!id) {
-      setResultado({ estado: 'noEncontrado' });
-      return;
-    }
-
     let activo = true;
 
-    setResultado({ estado: 'cargando' });
+    if (!id) {
+      Promise.resolve().then(() => {
+        if (activo) {
+          setConsulta({
+            id,
+            resultado: { estado: 'noEncontrado' },
+          });
+        }
+      });
+
+      return () => {
+        activo = false;
+      };
+    }
 
     getPedidoById(id)
       .then((pedidoEncontrado) => {
         if (!activo) return;
 
-        setResultado(
-          pedidoEncontrado
+        setConsulta({
+          id,
+          resultado: pedidoEncontrado
             ? { estado: 'encontrado', pedido: pedidoEncontrado }
-            : { estado: 'noEncontrado' }
-        );
+            : { estado: 'noEncontrado' },
+        });
       })
       .catch((error: unknown) => {
         if (!activo) return;
 
-        setResultado({
-          estado: 'error',
-          mensaje:
-            error instanceof Error
-              ? error.message
-              : 'No se pudo consultar el pedido. Inténtalo nuevamente.',
+        setConsulta({
+          id,
+          resultado: {
+            estado: 'error',
+            mensaje:
+              error instanceof Error
+                ? error.message
+                : 'No se pudo consultar el pedido. Inténtalo nuevamente.',
+          },
         });
       });
 
