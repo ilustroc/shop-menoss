@@ -12,8 +12,6 @@ import {
 } from '../services/carritoService'
 import { listarProductosCatalogo } from '../services/productoService'
 
-const COSTO_ENVIO_ESTIMADO = 10000
-
 function Carrito() {
   const [estadoInicialCarrito] = useState(() => {
     try {
@@ -115,10 +113,9 @@ function Carrito() {
   }
 
   const subtotalProductos = items.reduce((acc, item) => {
-    const precio = productosPorId.get(item.id)?.precio ?? item.precio
+    const precio = productosPorId.get(item.id)?.precio ?? 0
     return acc + precio * item.cantidad
   }, 0)
-  const totalEstimado = subtotalProductos + COSTO_ENVIO_ESTIMADO
 
   const totalProductos = items.reduce(
     (acc, item) => acc + item.cantidad,
@@ -251,7 +248,7 @@ function Carrito() {
             </div>
 
             <p className="text-muted small mb-0">
-              Gestiona las cantidades y revisa el resumen estimado de tus
+              Gestiona las cantidades y revisa el resumen de tus
               abarrotes.
             </p>
           </div>
@@ -450,16 +447,18 @@ function Carrito() {
               </div>
 
               <div className="d-flex justify-content-between mb-2 text-secondary small">
-                <span>Subtotal estimado:</span>
+                <span>Subtotal de productos:</span>
                 <span className="fw-semibold text-dark">
-                  {formatPrecio(subtotalProductos)}
+                  {catalogoVerificado
+                    ? formatPrecio(subtotalProductos)
+                    : 'Por confirmar'}
                 </span>
               </div>
 
               <div className="d-flex justify-content-between mb-3 text-secondary small">
-                <span>Envío estimado:</span>
+                <span>Envío:</span>
                 <span className="fw-semibold text-dark">
-                  {formatPrecio(COSTO_ENVIO_ESTIMADO)}
+                  Por confirmar
                 </span>
               </div>
 
@@ -473,7 +472,7 @@ function Carrito() {
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <span className="d-block small text-muted">
-                      Total estimado
+                      Total
                     </span>
 
                     <span
@@ -488,7 +487,7 @@ function Carrito() {
                   </div>
 
                   <span className="h4 fw-bold text-primary mb-0">
-                    {formatPrecio(totalEstimado)}
+                    Por confirmar
                   </span>
                 </div>
               </div>
@@ -511,7 +510,7 @@ function Carrito() {
                   className="text-muted d-block small"
                   style={{ fontSize: '0.78rem' }}
                 >
-                  Estimación sujeta a validación de precios, stock y envío por el backend.
+                  El backend confirma los precios, el envío y el total al crear el pedido.
                 </span>
               </div>
             </div>
