@@ -1,6 +1,46 @@
-// Estados acordados por el equipo (ver documento de ramas backend).
-// En el backend serán el enum EstadoPedido: PENDIENTE, CONFIRMADO,
-// PREPARANDO, ENTREGADO y CANCELADO.
+export type EstadoPedidoApi =
+  | 'PENDIENTE'
+  | 'CONFIRMADO'
+  | 'PREPARANDO'
+  | 'ENTREGADO'
+  | 'CANCELADO';
+
+export type MetodoPagoApi = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
+
+export interface CrearPedidoRequest {
+  direccion: string;
+  referencia?: string;
+  metodoPago: MetodoPagoApi;
+  detalles: DetallePedidoRequest[];
+}
+
+export interface DetallePedidoRequest {
+  productoId: number;
+  cantidad: number;
+}
+
+export interface DetallePedidoResponse {
+  id: number;
+  productoId: number;
+  nombreProducto: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface PedidoResponse {
+  id: number;
+  direccion: string;
+  referencia: string | null;
+  metodoPago: MetodoPagoApi;
+  estado: EstadoPedidoApi;
+  subtotal: number;
+  envio: number;
+  total: number;
+  fechaCreacion: string;
+  detalles: DetallePedidoResponse[];
+}
+
 export type EstadoPedido =
   | 'pendiente'
   | 'confirmado'
@@ -11,10 +51,12 @@ export type EstadoPedido =
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia';
 
 export interface DetallePedido {
+  id?: number;
   productoId: number;
   nombre: string;
   precioUnitario: number;
   cantidad: number;
+  subtotal?: number;
 }
 
 export interface Pedido {
@@ -24,7 +66,6 @@ export interface Pedido {
   direccion: string;
   referencia?: string;
   metodoPago: MetodoPago;
-  /** Solo los últimos 4 dígitos de la tarjeta simulada (nunca el número completo). */
   tarjetaUltimos4?: string;
   detalles: DetallePedido[];
   subtotal: number;

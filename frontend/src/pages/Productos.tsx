@@ -1,22 +1,43 @@
 // src/pages/Productos.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import ProductGrid from "../components/ProductGrid";
 import { agregarAlCarrito } from "../services/carritoService";
 import type { Producto } from "../types/producto";
-import { PRODUCTOS_MOCK } from "../data/productosMock";
+import { listarProductosCatalogo } from "../services/productoService";
 
 const Productos: React.FC = () => {
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("Todas");
 
-  // Categorías únicas sacadas de los productos, más la opción "Todas"
-  const categorias = useMemo(() => {
-    const unicas = Array.from(new Set(PRODUCTOS_MOCK.map((p) => p.categoria)));
-    return ["Todas", ...unicas];
+  useEffect(() => {
+    let activo = true;
+
+    listarProductosCatalogo()
+      .then((productosCargados) => {
+        if (activo) setProductos(productosCargados);
+      })
+      .catch(() => {
+        if (activo) setError(true);
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
+  const categorias = useMemo(() => {
+    const unicas = Array.from(new Set(productos.map((p) => p.categoria)));
+    return ["Todas", ...unicas];
+  }, [productos]);
+
   const productosFiltrados = useMemo(() => {
-    return PRODUCTOS_MOCK.filter((producto) => {
+    return productos.filter((producto) => {
       const coincideBusqueda = producto.nombre
         .toLowerCase()
         .includes(busqueda.toLowerCase());
@@ -27,7 +48,7 @@ const Productos: React.FC = () => {
 
       return coincideBusqueda && coincideCategoria;
     });
-  }, [busqueda, categoriaSeleccionada]);
+  }, [productos, busqueda, categoriaSeleccionada]);
 
   const handleAgregar = (producto: Producto) => {
     agregarAlCarrito(producto);
@@ -62,7 +83,17 @@ const Productos: React.FC = () => {
         </div>
       </div>
 
-      <ProductGrid productos={productosFiltrados} onAgregar={handleAgregar} />
+      {cargando ? (
+        <div className="alert alert-info" role="status">
+          Cargando productos...
+        </div>
+      ) : error ? (
+        <div className="alert alert-danger" role="alert">
+          No se pudo cargar el catálogo. Inténtalo nuevamente más tarde.
+        </div>
+      ) : (
+        <ProductGrid productos={productosFiltrados} onAgregar={handleAgregar} />
+      )}
     </div>
   );
 };
