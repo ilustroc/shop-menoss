@@ -9,6 +9,7 @@ export interface AdminPedidoResumen {
   direccion: string;
   cantidadProductos: number;
   total: number;
+  estadosPermitidos: EstadoPedido[];
 }
 
 /** Detalle administrativo (GET /api/admin/pedidos/{id}). */
