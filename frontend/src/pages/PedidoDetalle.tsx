@@ -75,17 +75,30 @@ function PedidoDetalle() {
   const [pedido, setPedido] = useState<Pedido>();
   const [cargando, setCargando] = useState(Boolean(id));
   const [error, setError] = useState(false);
+  const [noEncontrado, setNoEncontrado] = useState(false);
 
   useEffect(() => {
     let activo = true;
 
     if (!id) {
+      setNoEncontrado(true);
+      setCargando(false);
       return;
     }
 
+    setCargando(true);
+    setError(false);
+    setNoEncontrado(false);
+    setPedido(undefined);
+
     getPedidoById(id)
       .then((pedidoEncontrado) => {
-        if (activo) setPedido(pedidoEncontrado);
+        if (!activo) return;
+        if (pedidoEncontrado) {
+          setPedido(pedidoEncontrado);
+        } else {
+          setNoEncontrado(true);
+        }
       })
       .catch(() => {
         if (activo) setError(true);
@@ -103,15 +116,21 @@ function PedidoDetalle() {
     return <div className="container mt-5 py-4">Cargando pedido...</div>;
   }
 
-  if (error || !pedido) {
+  if (error || noEncontrado || !pedido) {
     return (
       <div className="container mt-5 py-4">
         <Link to="/pedidos" className="btn btn-outline-secondary btn-sm mb-4 px-3 rounded-pill">
           ← Volver al Historial
         </Link>
-        <div className="alert bg-danger-subtle text-danger border border-danger-subtle text-center p-4 rounded-3 shadow-sm">
-          <h4 className="alert-heading fw-bold mb-2">¡Pedido no encontrado!</h4>
-          <p className="mb-0">El identificador #{id} no coincide con ningún registro en nuestro sistema.</p>
+        <div className="alert bg-danger-subtle text-danger border border-danger-subtle text-center p-4 rounded-3 shadow-sm" role="alert">
+          <h4 className="alert-heading fw-bold mb-2">
+            {error ? 'No se pudo cargar el pedido' : '¡Pedido no encontrado!'}
+          </h4>
+          <p className="mb-0">
+            {error
+              ? 'Ocurrió un error al consultar el pedido. Inténtalo nuevamente.'
+              : `El identificador #${id} no coincide con ningún registro en nuestro sistema.`}
+          </p>
         </div>
       </div>
     );
@@ -187,7 +206,6 @@ function PedidoDetalle() {
                 <div className="d-flex align-items-center gap-2 mt-2">
                   <span className="badge bg-light text-dark border px-3 py-2 rounded-3">
                     {METODO_PAGO_LABELS[pedido.metodoPago]}
-                    {pedido.tarjetaUltimos4 && ` •••• ${pedido.tarjetaUltimos4}`}
                   </span>
                 </div>
               </div>
@@ -213,8 +231,8 @@ function PedidoDetalle() {
                     </tr>
                   </thead>
                   <tbody className="border-0">
-                    {pedido.detalles.map((detalle, index) => (
-                      <tr key={index} className="border-bottom">
+                    {pedido.detalles.map((detalle) => (
+                      <tr key={detalle.id ?? detalle.productoId} className="border-bottom">
                         <td className="py-3 px-4">
                           <span className="fw-semibold text-dark d-block">{detalle.nombre}</span>
                           <span className="text-muted small">ID Ref: #{detalle.productoId}</span>
@@ -228,7 +246,9 @@ function PedidoDetalle() {
                           {formatPrecio(detalle.precioUnitario)}
                         </td>
                         <td className="py-3 text-end fw-semibold text-dark px-4">
-                          {formatPrecio(detalle.precioUnitario * detalle.cantidad)}
+                          {detalle.subtotal === undefined
+                            ? '—'
+                            : formatPrecio(detalle.subtotal)}
                         </td>
                       </tr>
                     ))}
@@ -245,8 +265,8 @@ function PedidoDetalle() {
                     <span className="text-dark fw-medium">{formatPrecio(pedido.subtotal)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-3 pb-2 border-bottom">
-                    <span className="text-muted small">IGV Impuestos (18%):</span>
-                    <span className="text-dark fw-medium">{formatPrecio(pedido.igv)}</span>
+                    <span className="text-muted small">Envío:</span>
+                    <span className="text-dark fw-medium">{formatPrecio(pedido.envio)}</span>
                   </div>
                   <div className="d-flex justify-content-between align-items-center">
                     <span className="text-dark fw-bold fs-5 text-nowrap me-3">Total facturado:</span>
