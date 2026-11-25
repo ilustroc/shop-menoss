@@ -12,6 +12,7 @@ interface Props {
 
 function ProductoForm({ inicial, categorias, onGuardar, onCancelar }: Props) {
   const [nombre, setNombre] = useState(inicial?.nombre ?? '');
+  const [activo, setActivo] = useState(inicial?.activo ?? true);
   const [descripcion, setDescripcion] = useState(inicial?.descripcion ?? '');
   const [precio, setPrecio] = useState(inicial?.precio ?? 0);
   const [stock, setStock] = useState(inicial?.stock ?? 0);
@@ -21,7 +22,7 @@ function ProductoForm({ inicial, categorias, onGuardar, onCancelar }: Props) {
   const enviar = (e: FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !categoria) return;
-    onGuardar({ nombre: nombre.trim(), descripcion: descripcion.trim(), precio, stock, imagen: imagen.trim(), categoria });
+    onGuardar({ nombre: nombre.trim(), descripcion: descripcion.trim(), precio, stock, imagen: imagen.trim(), categoria, activo });
   };
 
   return (
@@ -46,7 +47,7 @@ function ProductoForm({ inicial, categorias, onGuardar, onCancelar }: Props) {
         </div>
         <div className="col-md-4">
           <label className="form-label">Precio (S/)</label>
-          <input type="number" min={0} step="0.01" className="form-control" value={precio} onChange={(e) => setPrecio(Number(e.target.value))} required />
+          <input type="number" min={0.01} step="0.01" className="form-control" value={precio} onChange={(e) => setPrecio(Number(e.target.value))} required />
         </div>
         <div className="col-md-4">
           <label className="form-label">Stock</label>
@@ -58,6 +59,7 @@ function ProductoForm({ inicial, categorias, onGuardar, onCancelar }: Props) {
         </div>
       </div>
       <div className="d-flex gap-2 mt-3">
+        <label><input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} /> Activo en catálogo</label>
         <button type="submit" className="btn btn-primary">Guardar</button>
         <button type="button" className="btn btn-outline-secondary" onClick={onCancelar}>Cancelar</button>
       </div>

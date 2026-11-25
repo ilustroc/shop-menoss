@@ -37,6 +37,8 @@ import com.shopmenoss.service.AdminPedidoService;
 @WebMvcTest(AdminPedidoController.class)
 @Import({SecurityConfig.class, UsuarioDetailsService.class})
 class AdminPedidoSeguridadTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.shopmenoss.security.JwtService jwtService;
 
     private static final String PASSWORD = "Clave123";
 

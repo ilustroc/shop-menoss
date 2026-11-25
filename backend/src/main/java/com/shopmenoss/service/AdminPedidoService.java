@@ -67,7 +67,9 @@ public class AdminPedidoService {
 
     @Transactional
     public AdminPedidoDetalleResponse actualizarEstado(Long id, ActualizarEstadoPedidoRequest request) {
-        Pedido pedido = buscarPedido(id);
+        // Serializa cambios concurrentes y evita reponer stock dos veces al cancelar.
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new EntityNotFoundException("Pedido no encontrado: " + id));
         EstadoPedido estadoActual = pedido.getEstado();
         EstadoPedido estadoNuevo = convertirEstado(request.getEstado());
 
