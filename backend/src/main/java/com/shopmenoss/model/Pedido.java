@@ -18,8 +18,14 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "pedidos")
+@Table(name = "pedidos", indexes = @jakarta.persistence.Index(name = "idx_pedidos_usuario", columnList = "usuario_id"))
 public class Pedido {
+    @jakarta.persistence.ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @jakarta.persistence.JoinColumn(name = "usuario_id")
+    private Usuario usuario;
+    public Usuario getUsuario() { return usuario; }
+    public void setUsuario(Usuario usuario) { this.usuario = usuario; }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

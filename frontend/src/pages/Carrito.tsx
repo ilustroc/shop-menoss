@@ -11,14 +11,18 @@ import {
   sincronizarCarritoConProductos,
 } from '../services/carritoService'
 import { listarProductosCatalogo } from '../services/productoService'
+import { calcularTotales } from '../services/pedidosService'
 
 function Carrito() {
   const [estadoInicialCarrito] = useState(() => {
     try {
-      return { items: leerCarrito(), error: null as string | null }
+      return {
+        items: leerCarrito(),
+        error: null as string | null,
+      }
     } catch (error) {
       return {
-        items: [],
+        items: [] as CartItem[],
         error:
           error instanceof Error
             ? error.message
@@ -26,9 +30,14 @@ function Carrito() {
       }
     }
   })
-  const [items, setItems] = useState<CartItem[]>(estadoInicialCarrito.items)
+
+  const [items, setItems] = useState<CartItem[]>(
+    estadoInicialCarrito.items
+  )
   const [productos, setProductos] = useState<Producto[]>([])
-  const [cargando, setCargando] = useState(!estadoInicialCarrito.error)
+  const [cargando, setCargando] = useState(
+    !estadoInicialCarrito.error
+  )
   const [catalogoVerificado, setCatalogoVerificado] = useState(false)
   const [errorCatalogo, setErrorCatalogo] = useState<string | null>(
     estadoInicialCarrito.error
@@ -44,8 +53,11 @@ function Carrito() {
       .then((productosActuales) => {
         if (!activo) return
 
+        const carritoActualizado =
+          sincronizarCarritoConProductos(productosActuales)
+
         setProductos(productosActuales)
-        setItems(sincronizarCarritoConProductos(productosActuales))
+        setItems(carritoActualizado)
         setCatalogoVerificado(true)
       })
       .catch(() => {
@@ -74,7 +86,9 @@ function Carrito() {
       setMensaje(null)
     } catch (error) {
       setMensaje(
-        error instanceof Error ? error.message : 'No se pudo actualizar el carrito.'
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el carrito.'
       )
     }
   }
@@ -83,7 +97,9 @@ function Carrito() {
     const producto = productosPorId.get(id)
 
     if (!catalogoVerificado || !producto) {
-      setMensaje('No se puede aumentar la cantidad sin verificar el producto y su stock.')
+      setMensaje(
+        'No se puede aumentar la cantidad sin verificar el producto y su stock.'
+      )
       return
     }
 
@@ -112,10 +128,16 @@ function Carrito() {
     return `S/ ${valor.toFixed(2)}`
   }
 
-  const subtotalProductos = items.reduce((acc, item) => {
-    const precio = productosPorId.get(item.id)?.precio ?? 0
-    return acc + precio * item.cantidad
-  }, 0)
+  const itemsConPreciosActuales = items.map((item) => ({
+    precio: productosPorId.get(item.id)?.precio ?? item.precio,
+    cantidad: item.cantidad,
+  }))
+
+  const {
+    subtotal: subtotalProductos,
+    envio,
+    total: totalFinal,
+  } = calcularTotales(itemsConPreciosActuales)
 
   const totalProductos = items.reduce(
     (acc, item) => acc + item.cantidad,
@@ -124,16 +146,31 @@ function Carrito() {
 
   const hayProblemasStock = items.some((item) => {
     const producto = productosPorId.get(item.id)
+
     return (
       !catalogoVerificado ||
       !producto ||
+      !Number.isSafeInteger(producto.stock) ||
       producto.stock <= 0 ||
       item.cantidad > producto.stock
     )
   })
-  const puedeContinuar =
+
+  const puedeMostrarImportes =
     catalogoVerificado &&
     !errorCatalogo &&
+    items.every((item) => {
+      const producto = productosPorId.get(item.id)
+
+      return (
+        producto !== undefined &&
+        Number.isFinite(producto.precio) &&
+        producto.precio >= 0
+      )
+    })
+
+  const puedeContinuar =
+    puedeMostrarImportes &&
     items.length > 0 &&
     !hayProblemasStock
 
@@ -155,6 +192,7 @@ function Carrito() {
             {errorCatalogo}
           </div>
         )}
+
         <div
           className="card border-0 shadow-sm mx-auto p-4 p-md-5 text-center bg-white"
           style={{ maxWidth: '580px', borderRadius: '12px' }}
@@ -190,8 +228,8 @@ function Carrito() {
           </h1>
 
           <p className="text-secondary mb-4 small">
-            No tienes productos seleccionados en este momento. Revisa nuestro
-            catálogo y añade lo que necesites para tu hogar.
+            No tienes productos seleccionados en este momento. Revisa
+            nuestro catálogo y añade lo que necesites para tu hogar.
           </p>
 
           <Link
@@ -206,7 +244,10 @@ function Carrito() {
   }
 
   return (
-    <main className="container py-4 py-md-5" id="carrito-vista-principal">
+    <main
+      className="container py-4 py-md-5"
+      id="carrito-vista-principal"
+    >
       {errorCatalogo && (
         <div className="alert alert-danger" role="alert">
           {errorCatalogo}
@@ -221,8 +262,8 @@ function Carrito() {
 
       {catalogoVerificado && hayProblemasStock && (
         <div className="alert alert-warning" role="alert">
-          Revisa los productos sin stock suficiente o que ya no están disponibles
-          antes de continuar.
+          Revisa los productos sin stock suficiente o que ya no están
+          disponibles antes de continuar.
         </div>
       )}
 
@@ -324,17 +365,35 @@ function Carrito() {
                   {items.map((item) => {
                     const producto = productosPorId.get(item.id)
                     const nombre = producto?.nombre ?? item.nombre
+
+                    const precioVerificado =
+                      catalogoVerificado &&
+                      producto !== undefined &&
+                      Number.isFinite(producto.precio) &&
+                      producto.precio >= 0
+
                     const precio = producto?.precio ?? item.precio
-                    const subtotal = precio * item.cantidad
+
+                    const subtotal = calcularTotales([
+                      { precio, cantidad: item.cantidad },
+                    ]).subtotal
+
+                    const stockValido =
+                      producto !== undefined &&
+                      Number.isSafeInteger(producto.stock) &&
+                      producto.stock >= 0
+
                     const mensajeStock = !catalogoVerificado
                       ? 'No se pudo verificar el stock.'
                       : !producto
                         ? 'Este producto ya no existe o no está disponible.'
-                        : producto.stock <= 0
-                          ? 'Producto sin stock.'
-                          : item.cantidad > producto.stock
-                            ? `Solo quedan ${producto.stock} unidades; reduce la cantidad.`
-                            : `Stock disponible: ${producto.stock}.`
+                        : !stockValido
+                          ? 'No se pudo verificar el stock disponible.'
+                          : producto.stock === 0
+                            ? 'Producto sin stock.'
+                            : item.cantidad > producto.stock
+                              ? `Solo quedan ${producto.stock} unidades; reduce la cantidad.`
+                              : `Stock disponible: ${producto.stock}.`
 
                     return (
                       <tr key={item.id}>
@@ -345,7 +404,10 @@ function Carrito() {
 
                           <span
                             className={`small ${
-                              !producto || producto.stock < item.cantidad
+                              !catalogoVerificado ||
+                              !producto ||
+                              !stockValido ||
+                              producto.stock < item.cantidad
                                 ? 'text-danger'
                                 : 'text-muted'
                             }`}
@@ -355,14 +417,16 @@ function Carrito() {
                         </td>
 
                         <td className="text-center text-muted small py-3">
-                          {formatPrecio(precio)}
+                          {precioVerificado
+                            ? formatPrecio(precio)
+                            : 'Por confirmar'}
                         </td>
 
                         <td className="text-center py-3 text-nowrap">
                           <div
                             className="btn-group btn-group-sm border rounded-2"
                             role="group"
-                            aria-label={`Control de cantidad para ${item.nombre}`}
+                            aria-label={`Control de cantidad para ${nombre}`}
                             style={{ overflow: 'hidden' }}
                           >
                             <button
@@ -370,7 +434,7 @@ function Carrito() {
                               className="btn btn-light border-0 px-2 fw-bold text-primary"
                               onClick={() => handleDisminuir(item.id)}
                               disabled={item.cantidad <= 1}
-                              aria-label="Disminuir cantidad"
+                              aria-label={`Disminuir cantidad de ${nombre}`}
                             >
                               −
                             </button>
@@ -389,9 +453,10 @@ function Carrito() {
                               disabled={
                                 !catalogoVerificado ||
                                 !producto ||
+                                !stockValido ||
                                 item.cantidad >= producto.stock
                               }
-                              aria-label="Aumentar cantidad"
+                              aria-label={`Aumentar cantidad de ${nombre}`}
                             >
                               +
                             </button>
@@ -399,7 +464,9 @@ function Carrito() {
                         </td>
 
                         <td className="text-end fw-bold text-primary py-3">
-                          {formatPrecio(subtotal)}
+                          {precioVerificado
+                            ? formatPrecio(subtotal)
+                            : 'Por confirmar'}
                         </td>
 
                         <td className="text-center pe-3 pe-md-4 py-3">
@@ -407,7 +474,7 @@ function Carrito() {
                             type="button"
                             className="btn btn-sm btn-link text-danger text-decoration-none p-1"
                             onClick={() => handleEliminar(item.id)}
-                            aria-label={`Eliminar ${item.nombre}`}
+                            aria-label={`Eliminar ${nombre}`}
                           >
                             Eliminar
                           </button>
@@ -447,9 +514,9 @@ function Carrito() {
               </div>
 
               <div className="d-flex justify-content-between mb-2 text-secondary small">
-                <span>Subtotal de productos:</span>
+                <span>Productos (IGV incluido):</span>
                 <span className="fw-semibold text-dark">
-                  {catalogoVerificado
+                  {puedeMostrarImportes
                     ? formatPrecio(subtotalProductos)
                     : 'Por confirmar'}
                 </span>
@@ -458,7 +525,9 @@ function Carrito() {
               <div className="d-flex justify-content-between mb-3 text-secondary small">
                 <span>Envío:</span>
                 <span className="fw-semibold text-dark">
-                  Por confirmar
+                  {puedeMostrarImportes
+                    ? formatPrecio(envio)
+                    : 'Por confirmar'}
                 </span>
               </div>
 
@@ -487,7 +556,9 @@ function Carrito() {
                   </div>
 
                   <span className="h4 fw-bold text-primary mb-0">
-                    Por confirmar
+                    {puedeMostrarImportes
+                      ? formatPrecio(totalFinal)
+                      : 'Por confirmar'}
                   </span>
                 </div>
               </div>
@@ -498,6 +569,7 @@ function Carrito() {
                   puedeContinuar ? '' : 'disabled'
                 }`}
                 aria-disabled={!puedeContinuar}
+                tabIndex={puedeContinuar ? undefined : -1}
                 onClick={(event) => {
                   if (!puedeContinuar) event.preventDefault()
                 }}
@@ -510,7 +582,9 @@ function Carrito() {
                   className="text-muted d-block small"
                   style={{ fontSize: '0.78rem' }}
                 >
-                  El backend confirma los precios, el envío y el total al crear el pedido.
+                  Los precios incluyen IGV, sin recargo adicional. El
+                  backend vuelve a validar los precios, el stock, el
+                  envío y el total al crear el pedido.
                 </span>
               </div>
             </div>

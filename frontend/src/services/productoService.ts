@@ -1,49 +1,92 @@
-import type { Producto, ProductoResponse } from '../types/producto';
-import api from './api';
+  import api from './api';
+import type { Producto } from '../types/producto';
+import { listarCategorias } from './categoriaService';
 
-// Las operaciones administrativas siguen usando datos locales; el catálogo público usa la API.
-let productos: Producto[] = [
-  { id: 1, nombre: 'Arroz Costeño 5kg', descripcion: 'Arroz extra superior', precio: 24.9, stock: 40, imagen: '', categoria: 'Abarrotes' },
-  { id: 2, nombre: 'Aceite Primor 1L', descripcion: 'Aceite vegetal', precio: 11.5, stock: 8, imagen: '', categoria: 'Abarrotes' },
-  { id: 3, nombre: 'Inca Kola 1.5L', descripcion: 'Gaseosa sabor original', precio: 7.5, stock: 60, imagen: '', categoria: 'Bebidas' },
-  { id: 4, nombre: 'Leche Gloria 400g', descripcion: 'Leche evaporada entera', precio: 4.2, stock: 5, imagen: '', categoria: 'Lácteos' },
-];
-let siguienteId = 5;
+interface ProductoAPI {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  stock: number;
+  imagenUrl: string | null;
+  categoriaId: number;
+  categoriaNombre: string;
+  activo: boolean;
+}
+
+function mapearProducto(producto: ProductoAPI): Producto {
+  return {
+    ...producto,
+    imagen: producto.imagenUrl || '/images/products/placeholder.png',
+    categoria: producto.categoriaNombre,
+  };
+}
+
+export async function listarProductos(
+  incluirInactivos = true
+): Promise<Producto[]> {
+  const { data } = await api.get<ProductoAPI[]>('/productos', {
+    params: { incluirInactivos },
+  });
+
+  return data.map(mapearProducto);
+}
 
 export async function listarProductosCatalogo(): Promise<Producto[]> {
-  const { data } = await api.get<ProductoResponse[]>('/productos');
+  return listarProductos(false);
+}
 
-  return data.map((producto) => ({
-    id: producto.id,
+async function construirBody(producto: Omit<Producto, 'id'>) {
+  const categorias = await listarCategorias();
+  const categoria = categorias.find(
+    (item) => item.nombre === producto.categoria
+  );
+
+  if (!categoria) {
+    throw new Error('Selecciona una categoría válida');
+  }
+
+  return {
     nombre: producto.nombre,
     descripcion: producto.descripcion,
     precio: producto.precio,
     stock: producto.stock,
-    imagen: producto.imagenUrl ?? '',
-    categoria: producto.categoriaNombre ?? '',
-  }));
+    imagenUrl: producto.imagen,
+    activo: producto.activo,
+    categoriaId: categoria.id,
+  };
 }
 
-export async function listarProductos(): Promise<Producto[]> {
-  return [...productos];
+export async function crearProducto(
+  producto: Omit<Producto, 'id'>
+): Promise<Producto> {
+  const body = await construirBody(producto);
+  const { data } = await api.post<ProductoAPI>('/productos', body);
+
+  return mapearProducto(data);
 }
 
-export async function crearProducto(data: Omit<Producto, 'id'>): Promise<Producto> {
-  const nuevo: Producto = { id: siguienteId++, ...data };
-  productos = [...productos, nuevo];
-  return nuevo;
-}
-
-export async function actualizarProducto(id: number, data: Omit<Producto, 'id'>): Promise<void> {
-  productos = productos.map((p) => (p.id === id ? { id, ...data } : p));
+export async function actualizarProducto(
+  id: number,
+  producto: Omit<Producto, 'id'>
+): Promise<void> {
+  const body = await construirBody(producto);
+  await api.put(`/productos/${id}`, body);
 }
 
 export async function eliminarProducto(id: number): Promise<void> {
-  productos = productos.filter((p) => p.id !== id);
+  await api.delete(`/productos/${id}`);
 }
 
-export async function ajustarStock(id: number, delta: number): Promise<void> {
-  productos = productos.map((p) =>
-    p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p
+export async function ajustarStock(
+  id: number,
+  delta: number
+): Promise<void> {
+  const { data: producto } = await api.get<ProductoAPI>(
+    `/productos/${id}`
   );
+
+  await api.put(`/productos/${id}/stock`, {
+    stock: Math.max(0, producto.stock + delta),
+  });
 }

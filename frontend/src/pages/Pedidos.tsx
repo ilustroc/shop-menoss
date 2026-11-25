@@ -62,7 +62,7 @@ function Pedidos() {
         <div className="alert alert-info text-center">Cargando pedidos...</div>
       ) : error ? (
         <div className="alert alert-danger text-center">
-          No se pudieron cargar los pedidos.
+          No se pudieron cargar los pedidos. Inicia sesión y vuelve a intentar. <button onClick={()=>window.location.reload()}>Reintentar</button>
         </div>
       ) : listaPedidos.length > 0 && (
         <div className="d-flex align-items-center gap-2 mb-3">

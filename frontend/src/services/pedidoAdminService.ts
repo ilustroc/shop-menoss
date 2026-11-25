@@ -1,42 +1,78 @@
-import type { EstadoPedido, Pedido } from '../types/pedido';
+// Módulo: gestión administrativa de pedidos (feature/admin-pedidos)
+// Consume los endpoints del backend (solo rol ADMINISTRADOR; el token JWT
+// lo agrega el interceptor de api.ts):
+//   GET /api/admin/pedidos            (filtro opcional ?estado=PENDIENTE)
+//   GET /api/admin/pedidos/{id}
+//   PUT /api/admin/pedidos/{id}/estado { "estado": "CONFIRMADO" }
 
-// TODO backend: reemplazar por api.get('/admin/pedidos') y api.patch(...)
-let pedidos: Pedido[] = [
-  {
-    id: 'PED-001',
-    fecha: '2026-10-20',
-    estado: 'pendiente',
-    direccion: 'Av. Arequipa 1234, Lima',
-    referencia: 'Frente al parque',
-    metodoPago: 'efectivo',
-    detalles: [
-      { productoId: 1, nombre: 'Arroz Costeño 5kg', precioUnitario: 24.9, cantidad: 1 },
-      { productoId: 3, nombre: 'Inca Kola 1.5L', precioUnitario: 7.5, cantidad: 2 },
-    ],
-    subtotal: 33.05,
-    envio: 0,
-    igv: 5.95,
-    total: 39.9,
-  },
-  {
-    id: 'PED-002',
-    fecha: '2026-10-21',
-    estado: 'preparando',
-    direccion: 'Jr. de la Unión 500, Lima',
-    metodoPago: 'tarjeta',
-    tarjetaUltimos4: '4242',
-    detalles: [{ productoId: 4, nombre: 'Leche Gloria 400g', precioUnitario: 4.2, cantidad: 6 }],
-    subtotal: 21.36,
-    envio: 0,
-    igv: 3.84,
-    total: 25.2,
-  },
-];
+import api from './api';
+import { mapearPedidoBackend } from './pedidosService';
+import type { EstadoPedido, MetodoPago } from '../types/pedido';
+import type { AdminPedidoDetalle, AdminPedidoResumen } from '../types/adminPedido';
 
-export async function listarPedidos(): Promise<Pedido[]> {
-  return [...pedidos];
+interface ResumenBackend {
+  id: number;
+  fechaCreacion?: string | null;
+  estado?: string | null;
+  estadosPermitidos?: string[] | null;
+  metodoPago?: string | null;
+  direccion?: string | null;
+  cantidadProductos?: number | null;
+  total?: number | null;
 }
 
-export async function cambiarEstadoPedido(id: string, estado: EstadoPedido): Promise<void> {
-  pedidos = pedidos.map((p) => (p.id === id ? { ...p, estado } : p));
+type DetalleBackend = Parameters<typeof mapearPedidoBackend>[0] & {
+  estadosPermitidos?: string[] | null;
+};
+
+function aEstado(estado?: string | null): EstadoPedido {
+  return (estado ?? 'PENDIENTE').toLowerCase() as EstadoPedido;
+}
+
+function aResumen(p: ResumenBackend): AdminPedidoResumen {
+  return {
+    id: String(p.id),
+    fecha: p.fechaCreacion ?? '',
+    estado: aEstado(p.estado),
+    estadosPermitidos: (p.estadosPermitidos ?? []).map(aEstado),
+    metodoPago: (p.metodoPago ?? 'EFECTIVO').toLowerCase() as MetodoPago,
+    direccion: p.direccion ?? '',
+    cantidadProductos: p.cantidadProductos ?? 0,
+    total: p.total ?? 0,
+  };
+}
+
+function aDetalle(p: DetalleBackend): AdminPedidoDetalle {
+  return {
+    ...mapearPedidoBackend(p),
+    estadosPermitidos: (p.estadosPermitidos ?? []).map(aEstado),
+  };
+}
+
+/** Lista los pedidos, del más reciente al más antiguo. */
+export async function listarPedidos(estado?: EstadoPedido): Promise<AdminPedidoResumen[]> {
+  const { data } = await api.get<ResumenBackend[]>('/admin/pedidos', {
+    params: estado ? { estado: estado.toUpperCase() } : undefined,
+  });
+  return data.map(aResumen);
+}
+
+export async function obtenerPedido(id: string): Promise<AdminPedidoDetalle> {
+  const { data } = await api.get<DetalleBackend>(`/admin/pedidos/${id}`);
+  return aDetalle(data);
+}
+
+/** Cambia el estado. Si es CANCELADO, el backend devuelve el stock (una sola vez). */
+export async function cambiarEstadoPedido(id: string, estado: EstadoPedido): Promise<AdminPedidoDetalle> {
+  const { data } = await api.put<DetalleBackend>(`/admin/pedidos/${id}/estado`, {
+    estado: estado.toUpperCase(),
+  });
+  return aDetalle(data);
+}
+
+/** El interceptor de api.ts ya traduce 401, 403 y los errores del backend. */
+export function mensajeError(error: unknown): string {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Ocurrió un error inesperado. Inténtalo nuevamente.';
 }

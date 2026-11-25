@@ -13,7 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
-// NO lleva @Component: se registrará manualmente en SecurityConfig (etapa 2).
+// Registro único en SecurityConfig, antes de la autenticación por usuario/contraseña.
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;

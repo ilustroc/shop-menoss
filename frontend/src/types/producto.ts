@@ -11,6 +11,7 @@ export interface ProductoResponse {
 }
 
 export interface Producto {
+  activo?: boolean;
   id: number;
   nombre: string;
   descripcion: string;
@@ -21,6 +22,7 @@ export interface Producto {
 }
 
 export interface CartItem {
+  stock?: number;
   id: number;
   nombre: string;
   precio: number;

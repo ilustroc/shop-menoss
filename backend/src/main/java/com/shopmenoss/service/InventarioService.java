@@ -46,13 +46,30 @@ public class InventarioService {
                 .toList();
     }
 
-    @Transactional
+        @Transactional
     public InventarioResponse actualizarStock(Long productoId, int nuevoStock) {
+        return actualizarStock(productoId, nuevoStock, null);
+    }
+
+    /**
+     * Fija el stock. Si se indica stockAnterior y ya no coincide con el actual
+     * (otra operación, como una compra, lo cambió), no sobrescribe y responde 409.
+     * La comparación se hace con la fila bloqueada, así no hay carreras.
+     */
+    @Transactional
+    public InventarioResponse actualizarStock(Long productoId, int nuevoStock, Integer stockAnterior) {
         if (nuevoStock < 0) {
             throw new IllegalStateException("El stock no puede ser negativo");
         }
 
         Producto producto = obtenerConBloqueo(productoId);
+        if (stockAnterior != null && !stockAnterior.equals(producto.getStock())) {
+            throw new IllegalStateException(
+                    "El stock de " + producto.getNombre() + " cambió mientras lo editabas (ahora es "
+                    + producto.getStock() + "). Revisa el valor actual e inténtalo de nuevo."
+            );
+        }
+
         producto.setStock(nuevoStock);
         return aResponse(producto);
     }

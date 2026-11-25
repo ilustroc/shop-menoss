@@ -5,7 +5,10 @@ export type EstadoPedidoApi =
   | 'ENTREGADO'
   | 'CANCELADO';
 
-export type MetodoPagoApi = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
+export type MetodoPagoApi =
+  | 'EFECTIVO'
+  | 'TARJETA'
+  | 'TRANSFERENCIA';
 
 export interface CrearPedidoRequest {
   direccion: string;
@@ -48,7 +51,10 @@ export type EstadoPedido =
   | 'entregado'
   | 'cancelado';
 
-export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia';
+export type MetodoPago =
+  | 'efectivo'
+  | 'tarjeta'
+  | 'transferencia';
 
 export interface DetallePedido {
   id?: number;
@@ -74,17 +80,8 @@ export interface Pedido {
   total: number;
 }
 
-/** Datos de una tarjeta ficticia. Solo se validan en el formulario, no se guardan. */
-export interface DatosTarjeta {
-  titular: string;
-  numero: string;
-  vencimiento: string; // MM/AA
-  cvv: string;
-}
-
 export interface DatosCompra {
   direccion: string;
   referencia?: string;
   metodoPago: MetodoPago;
-  tarjeta?: DatosTarjeta;
 }

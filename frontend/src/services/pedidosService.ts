@@ -5,13 +5,14 @@ import type { CartItem } from '../types/producto';
 import type {
   CrearPedidoRequest,
   DatosCompra,
-  EstadoPedidoApi,
   EstadoPedido,
   MetodoPago,
   MetodoPagoApi,
   Pedido,
   PedidoResponse,
 } from '../types/pedido';
+
+export { calcularTotales } from './totales';
 
 export const ESTADO_LABELS: Record<EstadoPedido, string> = {
   pendiente: 'Pendiente',
@@ -30,14 +31,14 @@ export const ESTADO_BADGE_CLASS: Record<EstadoPedido, string> = {
 };
 
 export const ESTADO_DESCRIPCION: Record<EstadoPedido, string> = {
-  pendiente: 'Recibimos tu pedido y está esperando la confirmación de la tienda.',
+  pendiente:
+    'Recibimos tu pedido y está esperando la confirmación de la tienda.',
   confirmado: 'La tienda confirmó tu pedido.',
   preparando: 'Estamos preparando tus productos.',
   entregado: 'Tu pedido fue entregado. ¡Gracias por comprar en Shop Menoss!',
   cancelado: 'Este pedido fue cancelado.',
 };
 
-/** Pasos del flujo normal que se muestran en el detalle (cancelado va aparte). */
 export const PASOS_ESTADO: EstadoPedido[] = [
   'pendiente',
   'confirmado',
@@ -51,8 +52,14 @@ export const METODO_PAGO_LABELS: Record<MetodoPago, string> = {
   transferencia: 'Transferencia bancaria',
 };
 
-function normalizarEstado(estado: EstadoPedidoApi): EstadoPedido {
-  switch (estado) {
+const METODOS_PAGO_API: Record<MetodoPago, MetodoPagoApi> = {
+  efectivo: 'EFECTIVO',
+  tarjeta: 'TARJETA',
+  transferencia: 'TRANSFERENCIA',
+};
+
+function normalizarEstado(estado: string): EstadoPedido {
+  switch (estado.trim().toUpperCase()) {
     case 'PENDIENTE':
       return 'pendiente';
     case 'CONFIRMADO':
@@ -68,14 +75,8 @@ function normalizarEstado(estado: EstadoPedidoApi): EstadoPedido {
   }
 }
 
-const METODOS_PAGO_API: Record<MetodoPago, MetodoPagoApi> = {
-  efectivo: 'EFECTIVO',
-  tarjeta: 'TARJETA',
-  transferencia: 'TRANSFERENCIA',
-};
-
-function normalizarMetodoPago(metodoPago: MetodoPagoApi): MetodoPago {
-  switch (metodoPago) {
+function normalizarMetodoPago(metodoPago: string): MetodoPago {
+  switch (metodoPago.trim().toUpperCase()) {
     case 'EFECTIVO':
       return 'efectivo';
     case 'TARJETA':
@@ -112,14 +113,23 @@ export function mapearPedidoBackend(pedido: PedidoResponse): Pedido {
 
 export async function listarPedidos(): Promise<Pedido[]> {
   const { data } = await api.get<PedidoResponse[]>('/pedidos');
+
   return data
     .map(mapearPedidoBackend)
-    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+    );
 }
 
-export async function obtenerPedidoPorId(id: string): Promise<Pedido | undefined> {
+export async function obtenerPedidoPorId(
+  id: string
+): Promise<Pedido | undefined> {
   try {
-    const { data } = await api.get<PedidoResponse>(`/pedidos/${id}`);
+    const { data } = await api.get<PedidoResponse>(
+      `/pedidos/${encodeURIComponent(id)}`
+    );
+
     return mapearPedidoBackend(data);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -136,29 +146,50 @@ export function getCarritoActual(): CartItem[] {
 
 export async function crearPedido(datos: DatosCompra): Promise<Pedido> {
   const carrito = leerCarrito();
+  const direccion = datos.direccion.trim();
 
   if (carrito.length === 0) {
     throw new Error('El carrito está vacío.');
   }
 
+  if (!direccion) {
+    throw new Error('Ingresa una dirección de entrega.');
+  }
+
+  const metodoPago = METODOS_PAGO_API[datos.metodoPago];
+
+  if (!metodoPago) {
+    throw new Error('Selecciona un método de pago válido.');
+  }
+
+  const referencia = datos.referencia?.trim();
+
   const request: CrearPedidoRequest = {
-    direccion: datos.direccion.trim(),
-    ...(datos.referencia?.trim()
-      ? { referencia: datos.referencia.trim() }
-      : {}),
-    metodoPago: METODOS_PAGO_API[datos.metodoPago],
+    direccion,
+    ...(referencia ? { referencia } : {}),
+    metodoPago,
     detalles: carrito.map((item) => ({
       productoId: item.id,
       cantidad: item.cantidad,
     })),
   };
-  const { data } = await api.post<PedidoResponse>('/pedidos', request);
+
+  const { data } = await api.post<PedidoResponse>(
+    '/pedidos',
+    request
+  );
+
   const pedido = mapearPedidoBackend(data);
+
   vaciarCarrito();
+
   return pedido;
 }
 
-export { listarPedidos as getPedidos, obtenerPedidoPorId as getPedidoById };
+export {
+  listarPedidos as getPedidos,
+  obtenerPedidoPorId as getPedidoById,
+};
 
 export function formatPrecio(valor: number): string {
   return `S/ ${valor.toFixed(2)}`;

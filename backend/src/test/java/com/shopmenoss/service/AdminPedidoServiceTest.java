@@ -95,7 +95,7 @@ class AdminPedidoServiceTest {
     @Test
     void actualizarEstadoValidoGuardaElCambio() {
         Pedido pedido = crearPedido(1L, EstadoPedido.PENDIENTE);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AdminPedidoDetalleResponse respuesta = adminPedidoService.actualizarEstado(
@@ -108,7 +108,7 @@ class AdminPedidoServiceTest {
     @Test
     void noPermiteSaltarDePendienteAEntregado() {
         Pedido pedido = crearPedido(1L, EstadoPedido.PENDIENTE);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
 
         assertThrows(TransicionEstadoInvalidaException.class, () -> adminPedidoService.actualizarEstado(
                 1L, new ActualizarEstadoPedidoRequest("ENTREGADO")));
@@ -118,7 +118,7 @@ class AdminPedidoServiceTest {
     @Test
     void noPermiteCambiarUnPedidoEntregado() {
         Pedido pedido = crearPedido(1L, EstadoPedido.ENTREGADO);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
 
         assertThrows(TransicionEstadoInvalidaException.class, () -> adminPedidoService.actualizarEstado(
                 1L, new ActualizarEstadoPedidoRequest("CANCELADO")));
@@ -127,7 +127,7 @@ class AdminPedidoServiceTest {
     @Test
     void estadoInexistenteLanza400() {
         Pedido pedido = crearPedido(1L, EstadoPedido.PENDIENTE);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
 
         assertThrows(EstadoPedidoInvalidoException.class, () -> adminPedidoService.actualizarEstado(
                 1L, new ActualizarEstadoPedidoRequest("VOLANDO")));
@@ -136,7 +136,7 @@ class AdminPedidoServiceTest {
     @Test
     void cancelarPedidoDevuelveElStock() {
         Pedido pedido = crearPedido(1L, EstadoPedido.CONFIRMADO);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(detallePedidoRepository.findByPedidoId(1L)).thenReturn(pedido.getDetalles());
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -148,11 +148,23 @@ class AdminPedidoServiceTest {
     @Test
     void otrosCambiosDeEstadoNoModificanElStock() {
         Pedido pedido = crearPedido(1L, EstadoPedido.CONFIRMADO);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
         adminPedidoService.actualizarEstado(1L, new ActualizarEstadoPedidoRequest("PREPARANDO"));
 
         verify(inventarioService, never()).reponerStock(anyLong(), anyInt());
+    }
+
+        @Test
+    void listadoIncluyeLosEstadosPermitidos() {
+        Pedido pedido = crearPedido(1L, EstadoPedido.CONFIRMADO);
+        when(pedidoRepository.findByEstadoOrderByFechaCreacionDesc(EstadoPedido.CONFIRMADO))
+                .thenReturn(List.of(pedido));
+
+        List<AdminPedidoResumenResponse> resultado = adminPedidoService.listarPedidos("CONFIRMADO");
+
+        assertEquals(List.of(EstadoPedido.PREPARANDO, EstadoPedido.CANCELADO),
+                resultado.get(0).getEstadosPermitidos());
     }
 }
