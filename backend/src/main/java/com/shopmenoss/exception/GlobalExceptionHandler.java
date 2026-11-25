@@ -8,14 +8,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.persistence.EntityNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    public ResponseEntity<Map<String, String>> status(org.springframework.web.server.ResponseStatusException ex) {
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> manejarEstado(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode()).body(Map.of("error", ex.getReason() == null ? "Solicitud rechazada" : ex.getReason()));
     }
 
@@ -24,8 +25,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(403).body(Map.of("error", "Acceso denegado"));
     }
 
-    @ExceptionHandler({IllegalArgumentException.class, org.springframework.http.converter.HttpMessageNotReadableException.class})
-    public ResponseEntity<Map<String, String>> invalido(Exception ex) {
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> manejarJsonInvalido(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest().body(Map.of("error", "Datos inválidos: revisa los campos enviados"));
     }
 
@@ -41,19 +42,10 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
-    // Errores con estado explícito (por ejemplo 401 en el login).
-    @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<Map<String, String>> manejarEstado(ResponseStatusException ex) {
-        String mensaje = ex.getReason() != null ? ex.getReason() : "Error en la solicitud";
-        return ResponseEntity.status(ex.getStatusCode())
-                .body(Map.of("error", mensaje));
-    }
-
-    // Datos inválidos de negocio (por ejemplo, correo ya registrado).
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> manejarArgumentoInvalido(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Datos inválidos: revisa los campos enviados"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
