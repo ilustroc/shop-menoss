@@ -135,6 +135,7 @@ public class AdminPedidoService {
         response.setId(pedido.getId());
         response.setFechaCreacion(pedido.getFechaCreacion());
         response.setEstado(pedido.getEstado());
+        response.setEstadosPermitidos(ReglasEstadoPedido.estadosSiguientes(pedido.getEstado()));
         response.setMetodoPago(pedido.getMetodoPago());
         response.setDireccion(pedido.getDireccion());
         response.setCantidadProductos(cantidadProductos);
@@ -170,4 +171,5 @@ public class AdminPedidoService {
         response.setDetalles(detalles);
         return response;
     }
+    
 }

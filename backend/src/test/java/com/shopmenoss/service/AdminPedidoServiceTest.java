@@ -155,4 +155,16 @@ class AdminPedidoServiceTest {
 
         verify(inventarioService, never()).reponerStock(anyLong(), anyInt());
     }
+
+        @Test
+    void listadoIncluyeLosEstadosPermitidos() {
+        Pedido pedido = crearPedido(1L, EstadoPedido.CONFIRMADO);
+        when(pedidoRepository.findByEstadoOrderByFechaCreacionDesc(EstadoPedido.CONFIRMADO))
+                .thenReturn(List.of(pedido));
+
+        List<AdminPedidoResumenResponse> resultado = adminPedidoService.listarPedidos("CONFIRMADO");
+
+        assertEquals(List.of(EstadoPedido.PREPARANDO, EstadoPedido.CANCELADO),
+                resultado.get(0).getEstadosPermitidos());
+    }
 }

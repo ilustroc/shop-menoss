@@ -2,6 +2,7 @@ package com.shopmenoss.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.shopmenoss.model.EstadoPedido;
 import com.shopmenoss.model.MetodoPago;
@@ -12,6 +13,7 @@ public class AdminPedidoResumenResponse {
     private Long id;
     private LocalDateTime fechaCreacion;
     private EstadoPedido estado;
+    private List<EstadoPedido> estadosPermitidos;
     private MetodoPago metodoPago;
     private String direccion;
     private Integer cantidadProductos;
@@ -74,5 +76,13 @@ public class AdminPedidoResumenResponse {
 
     public void setTotal(BigDecimal total) {
         this.total = total;
+    }
+
+        public List<EstadoPedido> getEstadosPermitidos() {
+        return estadosPermitidos;
+    }
+
+    public void setEstadosPermitidos(List<EstadoPedido> estadosPermitidos) {
+        this.estadosPermitidos = estadosPermitidos;
     }
 }

@@ -1,6 +1,7 @@
 package com.shopmenoss.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,6 +16,9 @@ import com.shopmenoss.dto.ActualizarEstadoPedidoRequest;
 import com.shopmenoss.dto.CrearPedidoRequest;
 import com.shopmenoss.dto.DetallePedidoRequest;
 import com.shopmenoss.dto.MetodoPagoRequest;
+import com.shopmenoss.exception.TransicionEstadoInvalidaException;
+import com.shopmenoss.model.EstadoPedido;
+import com.shopmenoss.model.Pedido;
 import com.shopmenoss.model.Categoria;
 import com.shopmenoss.model.Producto;
 
@@ -77,6 +81,39 @@ class CancelacionPedidoStockTest {
         adminPedidoService.actualizarEstado(pedidoId, new ActualizarEstadoPedidoRequest("CONFIRMADO"));
         limpiarContexto();
         assertEquals(7, stockActual());
+    }
+
+        @Test
+    void cancelarDosVecesReponeElStockUnaSolaVez() {
+        Long pedidoId = pedidoService.crearPedido(pedidoDe(3)).getId();
+        limpiarContexto();
+
+        adminPedidoService.actualizarEstado(pedidoId, new ActualizarEstadoPedidoRequest("CANCELADO"));
+        limpiarContexto();
+        assertEquals(10, stockActual());
+
+        assertThrows(TransicionEstadoInvalidaException.class, () -> adminPedidoService.actualizarEstado(
+                pedidoId, new ActualizarEstadoPedidoRequest("CANCELADO")));
+        limpiarContexto();
+        assertEquals(10, stockActual());
+    }
+
+    @Test
+    void unPedidoEntregadoNoSePuedeModificar() {
+        Long pedidoId = pedidoService.crearPedido(pedidoDe(2)).getId();
+        limpiarContexto();
+        for (String estado : new String[] {"CONFIRMADO", "PREPARANDO", "ENTREGADO"}) {
+            adminPedidoService.actualizarEstado(pedidoId, new ActualizarEstadoPedidoRequest(estado));
+            limpiarContexto();
+        }
+
+        assertThrows(TransicionEstadoInvalidaException.class, () -> adminPedidoService.actualizarEstado(
+                pedidoId, new ActualizarEstadoPedidoRequest("CANCELADO")));
+        limpiarContexto();
+
+        // Sigue ENTREGADO en la base de datos y el stock no se repuso
+        assertEquals(EstadoPedido.ENTREGADO, entityManager.find(Pedido.class, pedidoId).getEstado());
+        assertEquals(8, stockActual());
     }
 
     private CrearPedidoRequest pedidoDe(int cantidad) {
