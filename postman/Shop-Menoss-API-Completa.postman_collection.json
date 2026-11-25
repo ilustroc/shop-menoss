@@ -208,17 +208,18 @@
                   "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
                   "pm.test('Tiempo de respuesta menor a 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
                   "const data = pm.response.json();",
-                  "pm.test('Generación correcta del JWT y estructura AuthResponse', () => {",
+                  "pm.test('JWT generado para CLIENTE y estructura AuthResponse', () => {",
                   "  pm.expect(data).to.include.keys('id', 'nombre', 'apellido', 'correo', 'rol', 'mensaje', 'token');",
                   "  pm.expect(data.token).to.be.a('string').and.not.empty;",
                   "  pm.expect(data.token.split('.').length).to.eql(3);",
-                  "  pm.expect(['CLIENTE', 'ADMINISTRADOR']).to.include(data.rol);",
+                  "  pm.expect(data.rol).to.eql('CLIENTE');",
                   "});",
                   "if (data && data.token) {",
                   "  pm.collectionVariables.set('jwtToken', data.token);",
                   "  pm.collectionVariables.set('jwtCliente', data.token);",
                   "  if (pm.environment && pm.environment.name) {",
                   "    pm.environment.set('jwtToken', data.token);",
+                  "    pm.environment.set('jwtCliente', data.token);",
                   "  }",
                   "}"
                 ]
@@ -278,6 +279,7 @@
                   "  pm.collectionVariables.set('jwtAdmin', data.token);",
                   "  if (pm.environment && pm.environment.name) {",
                   "    pm.environment.set('jwtToken', data.token);",
+                  "    pm.environment.set('jwtAdmin', data.token);",
                   "  }",
                   "}"
                 ]
