@@ -8,6 +8,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.MediaType;
 
 @Configuration
 public class SecurityConfig {
@@ -31,6 +32,18 @@ public class SecurityConfig {
             )
             // Autenticación básica con correo y contraseña (UsuarioDetailsService).
             .httpBasic(Customizer.withDefaults())
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(401);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"error\":\"Autenticación requerida o sesión no válida\"}");
+                })
+                .accessDeniedHandler((request, response, exception) -> {
+                    response.setStatus(403);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"error\":\"Acceso denegado\"}");
+                })
+            )
             .addFilterBefore(new com.shopmenoss.security.JwtAuthFilter(jwtService),
                 org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 

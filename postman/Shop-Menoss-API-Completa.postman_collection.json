@@ -17,6 +17,16 @@
       "type": "string"
     },
     {
+      "key": "jwtCliente",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jwtAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "productoId",
       "value": "1",
       "type": "string"
@@ -198,16 +208,18 @@
                   "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
                   "pm.test('Tiempo de respuesta menor a 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
                   "const data = pm.response.json();",
-                  "pm.test('Generación correcta del JWT y estructura AuthResponse', () => {",
+                  "pm.test('JWT generado para CLIENTE y estructura AuthResponse', () => {",
                   "  pm.expect(data).to.include.keys('id', 'nombre', 'apellido', 'correo', 'rol', 'mensaje', 'token');",
                   "  pm.expect(data.token).to.be.a('string').and.not.empty;",
                   "  pm.expect(data.token.split('.').length).to.eql(3);",
-                  "  pm.expect(['CLIENTE', 'ADMINISTRADOR']).to.include(data.rol);",
+                  "  pm.expect(data.rol).to.eql('CLIENTE');",
                   "});",
                   "if (data && data.token) {",
                   "  pm.collectionVariables.set('jwtToken', data.token);",
+                  "  pm.collectionVariables.set('jwtCliente', data.token);",
                   "  if (pm.environment && pm.environment.name) {",
                   "    pm.environment.set('jwtToken', data.token);",
+                  "    pm.environment.set('jwtCliente', data.token);",
                   "  }",
                   "}"
                 ]
@@ -264,8 +276,10 @@
                   "});",
                   "if (data && data.token) {",
                   "  pm.collectionVariables.set('jwtToken', data.token);",
+                  "  pm.collectionVariables.set('jwtAdmin', data.token);",
                   "  if (pm.environment && pm.environment.name) {",
                   "    pm.environment.set('jwtToken', data.token);",
+                  "    pm.environment.set('jwtAdmin', data.token);",
                   "  }",
                   "}"
                 ]
@@ -1523,7 +1537,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{jwtToken}}",
+                  "value": "{{jwtCliente}}",
                   "type": "string"
                 }
               ]
@@ -1540,7 +1554,7 @@
                 "pedidos"
               ]
             },
-            "description": "Ejecutar tras iniciar sesión con un usuario de rol `CLIENTE`: verifica que Spring Security devuelva 403 Forbidden (o 200 si el token actual es de ADMINISTRADOR)."
+            "description": "Ejecutar después de `POST Login y captura de JWT`: usa el token capturado para CLIENTE y verifica que Spring Security devuelva 403 Forbidden."
           },
           "event": [
             {
@@ -1548,9 +1562,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Código HTTP 403 Forbidden para CLIENTE (o 200 si jwtToken es ADMINISTRADOR)', () => {",
-                  "  pm.expect([403, 200]).to.include(pm.response.code);",
-                  "});",
+                  "pm.test('Código HTTP 403 Forbidden para CLIENTE', () => pm.response.to.have.status(403));",
+                  "pm.test('Error JSON comprensible', () => pm.expect(pm.response.json().error).to.exist);",
                   "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));"
                 ]
               }

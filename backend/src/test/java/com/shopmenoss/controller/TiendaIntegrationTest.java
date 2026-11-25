@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @AutoConfigureMockMvc
 @Transactional
 class TiendaIntegrationTest {
+    private static final String JWT_SECRET_PRUEBA = "shop-menoss-test-jwt-key-2026-only-for-tests";
     @Autowired MockMvc mvc;
     @Autowired EntityManager em;
     @Autowired JwtService jwt;
@@ -39,12 +40,18 @@ class TiendaIntegrationTest {
             """)).andExpect(status().isOk()).andExpect(jsonPath("$.token").isString());
         mvc.perform(post("/api/auth/login").contentType("application/json").content("""
             {"correo":"nuevo@test.com","password":"incorrecta"}
-            """)).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/admin/pedidos")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/pedidos").header("Authorization", "Bearer invalido")).andExpect(status().isUnauthorized());
+            """)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(post("/api/auth/login").contentType("application/json").content("{"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(get("/api/admin/pedidos")).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(get("/api/pedidos").header("Authorization", "Bearer invalido"))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error").exists());
         var cliente = usuario("cliente@test.com", Rol.CLIENTE);
+        String vencido = new JwtService(JWT_SECRET_PRUEBA, -1).generarToken(cliente);
+        mvc.perform(get("/api/pedidos").header("Authorization", "Bearer " + vencido))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error").exists());
         mvc.perform(get("/api/admin/pedidos").header("Authorization","Bearer "+jwt.generarToken(cliente)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").exists());
         mvc.perform(post("/api/productos").header("Authorization","Bearer "+jwt.generarToken(cliente))
             .contentType("application/json").content("{}")).andExpect(status().isForbidden());
         mvc.perform(post("/api/pedidos").header("Authorization","Bearer "+jwt.generarToken(cliente))

@@ -8,13 +8,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.persistence.EntityNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    public ResponseEntity<Map<String, String>> status(org.springframework.web.server.ResponseStatusException ex) {
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> manejarEstado(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode()).body(Map.of("error", ex.getReason() == null ? "Solicitud rechazada" : ex.getReason()));
     }
 
@@ -23,8 +25,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(403).body(Map.of("error", "Acceso denegado"));
     }
 
-    @ExceptionHandler({IllegalArgumentException.class, org.springframework.http.converter.HttpMessageNotReadableException.class})
-    public ResponseEntity<Map<String, String>> invalido(Exception ex) {
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> manejarJsonInvalido(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest().body(Map.of("error", "Datos inválidos: revisa los campos enviados"));
     }
 
@@ -38,6 +40,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> manejarStockInsuficiente(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> manejarArgumentoInvalido(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Datos inválidos: revisa los campos enviados"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
