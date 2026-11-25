@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import {
   getCarritoActual,
   crearPedido,
-  calcularTotales,
   formatPrecio,
   METODO_PAGO_LABELS,
 } from '../services/pedidosService';
@@ -14,11 +14,32 @@ type Errores = Partial<Record<'direccion' | keyof DatosTarjeta | 'general', stri
 
 const TARJETA_VACIA: DatosTarjeta = { titular: '', numero: '', vencimiento: '', cvv: '' };
 
+function leerCarritoInicial(): { carrito: CartItem[]; error: string | null } {
+  try {
+    return { carrito: getCarritoActual(), error: null };
+  } catch {
+    return {
+      carrito: [],
+      error: 'No se pudo leer el carrito. Vuelve al carrito y revisa sus productos.',
+    };
+  }
+}
+
+function mensajeErrorCreacion(error: unknown): string {
+  if (axios.isAxiosError<{ message?: unknown; detail?: unknown }>(error)) {
+    const respuesta = error.response?.data;
+    if (typeof respuesta?.message === 'string') return respuesta.message;
+    if (typeof respuesta?.detail === 'string') return respuesta.detail;
+  }
+
+  return 'No se pudo registrar el pedido. Revisa tu conexión e inténtalo nuevamente; tu carrito se conserva.';
+}
+
 // Validaciones del pago simulado (no se conecta con ninguna pasarela real)
 function validar(datos: DatosCompra, tarjeta: DatosTarjeta): Errores {
   const errores: Errores = {};
 
-  if (datos.direccion.trim().length < 5) {
+  if (datos.direccion.trim().length === 0) {
     errores.direccion = 'Ingresa una dirección de entrega válida.';
   }
 
@@ -67,17 +88,23 @@ function formatearVencimiento(valor: string) {
 function CheckoutPage() {
   const navigate = useNavigate();
 
-  const [carrito] = useState<CartItem[]>(() => getCarritoActual());
+  const [estadoInicial] = useState(leerCarritoInicial);
+  const [carrito] = useState<CartItem[]>(estadoInicial.carrito);
   const [datosForm, setDatosForm] = useState<DatosCompra>({
     direccion: '',
     referencia: '',
     metodoPago: 'efectivo',
   });
   const [tarjeta, setTarjeta] = useState<DatosTarjeta>(TARJETA_VACIA);
-  const [errores, setErrores] = useState<Errores>({});
+  const [errores, setErrores] = useState<Errores>(() =>
+    estadoInicial.error ? { general: estadoInicial.error } : {}
+  );
   const [procesando, setProcesando] = useState(false);
 
-  const { subtotal, igv, total } = calcularTotales(carrito);
+  const subtotal = carrito.reduce(
+    (acumulado, item) => acumulado + item.precio * item.cantidad,
+    0
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -95,8 +122,10 @@ function CheckoutPage() {
     setTarjeta((prev) => ({ ...prev, [name]: valor }));
   };
 
-  const handleConfirmarPedido = (e: React.FormEvent) => {
+  const handleConfirmarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (procesando) return;
 
     if (carrito.length === 0) {
       setErrores({ general: 'Tu carrito está vacío. Agrega productos antes de continuar.' });
@@ -108,19 +137,18 @@ function CheckoutPage() {
     if (Object.keys(nuevosErrores).length > 0) return;
 
     setProcesando(true);
-    // Simulamos una pequeña espera de "procesando pago"
-    setTimeout(async () => {
-      try {
-        const pedidoCreado = await crearPedido({
-          ...datosForm,
-          tarjeta: datosForm.metodoPago === 'tarjeta' ? tarjeta : undefined,
-        });
-        navigate(`/pedidos/${pedidoCreado.id}`, { state: { recienCreado: true } });
-      } catch {
-        setErrores({ general: 'No se pudo registrar el pedido. Inténtalo nuevamente.' });
-        setProcesando(false);
-      }
-    }, 800);
+    try {
+      const pedidoCreado = await crearPedido({
+        direccion: datosForm.direccion.trim(),
+        referencia: datosForm.referencia?.trim() || undefined,
+        metodoPago: datosForm.metodoPago,
+      });
+      navigate(`/pedidos/${pedidoCreado.id}`, { state: { recienCreado: true } });
+    } catch (error) {
+      setErrores({ general: mensajeErrorCreacion(error) });
+    } finally {
+      setProcesando(false);
+    }
   };
 
   const claseInput = (campo: keyof Errores, base: string) =>
@@ -315,16 +343,16 @@ function CheckoutPage() {
 
                   <div className="bg-light p-3 rounded-4 border mb-4">
                     <div className="d-flex justify-content-between mb-2 small text-secondary">
-                      <span>Subtotal:</span>
+                      <span>Subtotal estimado:</span>
                       <span>{formatPrecio(subtotal)}</span>
                     </div>
                     <div className="d-flex justify-content-between mb-3 pb-2 border-bottom small text-secondary">
-                      <span>IGV (18%):</span>
-                      <span>{formatPrecio(igv)}</span>
+                      <span>Envío y total final:</span>
+                      <span>Calculados por el backend</span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center fw-bold">
-                      <span className="fs-5 text-dark">Total a pagar:</span>
-                      <span className="fs-4 text-success font-monospace">{formatPrecio(total)}</span>
+                      <span className="fs-5 text-dark">Importe definitivo:</span>
+                      <span className="fs-6 text-success">Al confirmar el pedido</span>
                     </div>
                   </div>
 
@@ -337,10 +365,10 @@ function CheckoutPage() {
                     {procesando ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
-                        Procesando pago...
+                        Registrando pedido...
                       </>
                     ) : (
-                      'Confirmar compra'
+                      'Crear pedido'
                     )}
                   </button>
                 </>
