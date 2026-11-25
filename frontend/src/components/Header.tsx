@@ -95,19 +95,19 @@ function Header() {
               </li>
             </ul>
 
-            {user && <div className="d-flex gap-2 align-items-center"><span>{user.nombre}</span>{user.rol === 'ADMINISTRADOR' && <Link to="/admin">Administración</Link>}<button className="btn btn-outline-secondary" onClick={logout}>Cerrar sesión</button></div>}
+            {user && <div className="d-flex gap-2 align-items-center"><span>Hola, {user.nombre}</span>{user.rol === 'ADMINISTRADOR' && <Link to="/admin">Administración</Link>}<button className="btn btn-outline-secondary" onClick={logout}>Cerrar sesión</button></div>}
             {/* Acciones del usuario */}
             <div className="d-grid d-lg-flex gap-2">
               {!user && <Link className="btn btn-outline-primary btn-sm px-3" to="/login">
                 Iniciar sesión
               </Link>}
 
-              <Link
+              {!user && <Link
                 className="btn btn-outline-secondary btn-sm px-3"
                 to="/registro"
               >
                 Registrarse
-              </Link>
+              </Link>}
 
               <Link className="btn btn-primary btn-sm px-3" to="/carrito">
                 Carrito
