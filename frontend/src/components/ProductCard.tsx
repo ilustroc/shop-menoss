@@ -15,9 +15,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ producto, onAgregar }) => {
         src={producto.imagen}
         className="card-img-top"
         alt={producto.nombre}
+        loading="lazy"
         onError={(e) => {
-          (e.target as HTMLImageElement).src =
-            "/images/products/placeholder.png";
+          const img = e.target as HTMLImageElement;
+          // Evita un bucle de errores si la propia imagen por defecto no carga.
+          if (!img.src.endsWith("/images/products/placeholder.png")) {
+            img.src = "/images/products/placeholder.png";
+          }
         }}
       />
       <div className="card-body d-flex flex-column">

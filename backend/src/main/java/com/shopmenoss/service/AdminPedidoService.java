@@ -67,7 +67,9 @@ public class AdminPedidoService {
 
     @Transactional
     public AdminPedidoDetalleResponse actualizarEstado(Long id, ActualizarEstadoPedidoRequest request) {
-        Pedido pedido = buscarPedido(id);
+        // Serializa cambios concurrentes y evita reponer stock dos veces al cancelar.
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new EntityNotFoundException("Pedido no encontrado: " + id));
         EstadoPedido estadoActual = pedido.getEstado();
         EstadoPedido estadoNuevo = convertirEstado(request.getEstado());
 
@@ -133,6 +135,7 @@ public class AdminPedidoService {
         response.setId(pedido.getId());
         response.setFechaCreacion(pedido.getFechaCreacion());
         response.setEstado(pedido.getEstado());
+        response.setEstadosPermitidos(ReglasEstadoPedido.estadosSiguientes(pedido.getEstado()));
         response.setMetodoPago(pedido.getMetodoPago());
         response.setDireccion(pedido.getDireccion());
         response.setCantidadProductos(cantidadProductos);
@@ -168,4 +171,5 @@ public class AdminPedidoService {
         response.setDetalles(detalles);
         return response;
     }
+    
 }

@@ -19,31 +19,48 @@ import com.shopmenoss.model.Pedido;
 import com.shopmenoss.model.Producto;
 import com.shopmenoss.repository.DetallePedidoRepository;
 import com.shopmenoss.repository.PedidoRepository;
+import com.shopmenoss.repository.UsuarioRepository;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class PedidoService {
 
-    private static final BigDecimal COSTO_ENVIO = new BigDecimal("10000");
+    private static final BigDecimal COSTO_ENVIO = new BigDecimal("10.00");
 
     private final PedidoRepository pedidoRepository;
     private final DetallePedidoRepository detallePedidoRepository;
     private final InventarioService inventarioService;
+    private final UsuarioRepository usuarioRepository;
+
+    private String correoActual() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getName().equals("anonymousUser")) {
+            throw new AccessDeniedException("Inicia sesión");
+        }
+        return auth.getName();
+    }
+
 
     public PedidoService(
             PedidoRepository pedidoRepository,
             DetallePedidoRepository detallePedidoRepository,
-            InventarioService inventarioService
+            InventarioService inventarioService,
+            UsuarioRepository usuarioRepository
     ) {
         this.pedidoRepository = pedidoRepository;
         this.detallePedidoRepository = detallePedidoRepository;
         this.inventarioService = inventarioService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Transactional
     public PedidoResponse crearPedido(CrearPedidoRequest request) {
         Pedido pedido = new Pedido();
+        pedido.setUsuario(usuarioRepository.findByCorreo(correoActual())
+                .orElseThrow(() -> new AccessDeniedException("Usuario no disponible")));
         pedido.setDireccion(request.getDireccion());
         pedido.setReferencia(request.getReferencia());
         pedido.setMetodoPago(MetodoPago.valueOf(request.getMetodoPago().name()));
@@ -93,7 +110,7 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarPedidos() {
-        List<Pedido> pedidos = pedidoRepository.findAll();
+        List<Pedido> pedidos = pedidoRepository.findByUsuarioCorreo(correoActual());
         List<PedidoResponse> respuesta = new ArrayList<>();
 
         for (Pedido pedido : pedidos) {
@@ -109,6 +126,8 @@ public class PedidoService {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Pedido no encontrado: " + id));
 
+        if (pedido.getUsuario() == null || !pedido.getUsuario().getCorreo().equals(correoActual()))
+            throw new EntityNotFoundException("Pedido no encontrado: " + id);
         List<DetallePedido> detalles = detallePedidoRepository.findByPedidoId(pedido.getId());
 
         return construirResponse(pedido, detalles);
@@ -124,7 +143,7 @@ public class PedidoService {
             detallesResponse.add(new DetallePedidoResponse(
                     detalle.getId(),
                     detalle.getProducto().getId(),
-                    detalle.getProducto().getNombre(),
+                    detalle.getNombreProducto(),
                     detalle.getCantidad(),
                     detalle.getPrecioUnitario(),
                     subtotalDetalle

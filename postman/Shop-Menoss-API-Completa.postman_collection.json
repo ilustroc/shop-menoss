@@ -1,0 +1,1905 @@
+{
+  "info": {
+    "_postman_id": "a7f24c9e-8b1d-4e3a-9c5b-2d4f6a8e0c1b",
+    "name": "Shop Menoss - API Completa",
+    "description": "Colección Postman v2.1 completa para Shop Menoss (Spring Boot 4 + PostgreSQL 17 + JWT). Cubre todos los controladores reales del backend: Health, Autenticación, Productos, Categorías, Inventario, Carrito y compras, Pedidos del cliente, Administración de pedidos y Administración de productos e inventario.\n\nVariables principales:\n- baseUrl: http://localhost:18088/api\n- jwtToken: token JWT capturado automáticamente en Login\n- productoId, categoriaId, pedidoId\n- correoPrueba, passwordPrueba",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:18088/api",
+      "type": "string"
+    },
+    {
+      "key": "jwtToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jwtCliente",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jwtAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productoId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "categoriaId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "pedidoId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "correoPrueba",
+      "value": "cliente.demo@shopmenoss.pe",
+      "type": "string"
+    },
+    {
+      "key": "passwordPrueba",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "correoAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "passwordAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stockOriginal",
+      "value": "10",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "description": "Verificación de disponibilidad del backend de Shop Menoss (solo lectura).",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Verifica que el servicio Spring Boot esté activo. No requiere autenticación ni parámetros. Devuelve texto plano."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test('Mensaje de salud correcto', () => pm.expect(pm.response.text()).to.eql('Shop Menoss API funcionando correctamente'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Autenticación (registro y login)",
+      "description": "Endpoints públicos de registro de clientes (`/api/auth/registro`) e inicio de sesión con generación de JWT (`/api/auth/login`). Incluye validaciones y pruebas de error.",
+      "item": [
+        {
+          "name": "POST Registro de cliente (Escritura)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Carlos\",\n  \"apellido\": \"Mendoza\",\n  \"correo\": \"{{correoPrueba}}\",\n  \"password\": \"{{passwordPrueba}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "Registra un nuevo usuario con rol CLIENTE.\n\nDatos requeridos (`RegistroRequest`):\n- `nombre`: 2 a 20 letras/espacios.\n- `apellido`: 2 a 20 letras/espacios.\n- `correo`: formato email válido (máx. 100 caracteres).\n- `password`: 8 a 64 caracteres, con mayúscula, minúscula, número y carácter especial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 201 Created (o 409 si ya fue registrado)', () => pm.expect([201, 409]).to.include(pm.response.code));",
+                  "pm.test('Tiempo de respuesta menor a 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+                  "const body = pm.response.json();",
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Estructura JSON de AuthResponse válida', () => {",
+                  "    pm.expect(body).to.include.keys('id', 'nombre', 'apellido', 'correo', 'rol', 'mensaje');",
+                  "    pm.expect(body.rol).to.eql('CLIENTE');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Login y captura de JWT",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correoPrueba}}\",\n  \"password\": \"{{passwordPrueba}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Autentica un usuario existente (CLIENTE o ADMINISTRADOR) y devuelve un token JWT firmado. El script de test guarda automáticamente `token` en la variable `jwtToken`.\n\nDatos requeridos (`LoginRequest`):\n- `correo`: email del usuario.\n- `password`: contraseña en texto plano."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+                  "const data = pm.response.json();",
+                  "pm.test('JWT generado para CLIENTE y estructura AuthResponse', () => {",
+                  "  pm.expect(data).to.include.keys('id', 'nombre', 'apellido', 'correo', 'rol', 'mensaje', 'token');",
+                  "  pm.expect(data.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.token.split('.').length).to.eql(3);",
+                  "  pm.expect(data.rol).to.eql('CLIENTE');",
+                  "});",
+                  "if (data && data.token) {",
+                  "  pm.collectionVariables.set('jwtToken', data.token);",
+                  "  pm.collectionVariables.set('jwtCliente', data.token);",
+                  "  if (pm.environment && pm.environment.name) {",
+                  "    pm.environment.set('jwtToken', data.token);",
+                  "    pm.environment.set('jwtCliente', data.token);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Login Administrador (captura JWT admin)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correoAdmin}}\",\n  \"password\": \"{{passwordAdmin}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Autentica con las variables `correoAdmin` y `passwordAdmin` para obtener un JWT con rol `ADMINISTRADOR` y guardarlo en `jwtToken`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+                  "const data = pm.response.json();",
+                  "pm.test('JWT generado con rol ADMINISTRADOR', () => {",
+                  "  pm.expect(data.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.rol).to.eql('ADMINISTRADOR');",
+                  "});",
+                  "if (data && data.token) {",
+                  "  pm.collectionVariables.set('jwtToken', data.token);",
+                  "  pm.collectionVariables.set('jwtAdmin', data.token);",
+                  "  if (pm.environment && pm.environment.name) {",
+                  "    pm.environment.set('jwtToken', data.token);",
+                  "    pm.environment.set('jwtAdmin', data.token);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Registro inválido - Validación 400 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"A\",\n  \"apellido\": \"123\",\n  \"correo\": \"correo-invalido\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "Verifica que el backend rechace con 400 Bad Request un registro que incumple las restricciones de `RegistroRequest` sin crear registros."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "const err = pm.response.json();",
+                  "pm.test('Estructura JSON con campos de validación', () => {",
+                  "  pm.expect(err).to.be.an('object');",
+                  "  pm.expect(err).to.include.any.keys('nombre', 'apellido', 'correo', 'password');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Login credenciales inválidas - 401 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"noexiste.usuario@shopmenoss.pe\",\n  \"password\": \"ClaveIncorrecta123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Verifica que credenciales inválidas respondan con 401 Unauthorized y mensaje de error uniforme."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const err = pm.response.json();",
+                  "pm.test('Estructura JSON con propiedad error', () => {",
+                  "  pm.expect(err).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Productos",
+      "description": "Consultas públicas del catálogo de productos (`/api/productos`). Solo lectura.",
+      "item": [
+        {
+          "name": "GET Listar productos activos (Catálogo público)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos?incluirInactivos=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Obtiene todos los productos activos desde PostgreSQL. Captura automáticamente el primer producto con stock disponible en `productoId` y su categoría en `categoriaId`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const list = pm.response.json();",
+                  "pm.test('Estructura JSON: arreglo de ProductoResponse', () => {",
+                  "  pm.expect(list).to.be.an('array');",
+                  "  if (list.length > 0) {",
+                  "    pm.expect(list[0]).to.include.keys('id', 'nombre', 'precio', 'stock', 'activo', 'categoriaId', 'categoriaNombre');",
+                  "  }",
+                  "});",
+                  "const prodConStock = list.find(p => p.activo && p.stock > 0) || list[0];",
+                  "if (prodConStock) {",
+                  "  pm.collectionVariables.set('productoId', String(prodConStock.id));",
+                  "  pm.collectionVariables.set('categoriaId', String(prodConStock.categoriaId));",
+                  "  pm.collectionVariables.set('stockOriginal', String(prodConStock.stock));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Buscar y filtrar productos por categoría y texto",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos?categoriaId={{categoriaId}}&q=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "categoriaId",
+                  "value": "{{categoriaId}}"
+                },
+                {
+                  "key": "q",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Filtra productos activos por `categoriaId` y búsqueda opcional por texto `q`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const list = pm.response.json();",
+                  "pm.test('Devuelve arreglo filtrado por categoría', () => {",
+                  "  pm.expect(list).to.be.an('array');",
+                  "  const catId = Number(pm.variables.get('categoriaId'));",
+                  "  list.forEach(p => pm.expect(p.categoriaId).to.eql(catId));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Obtener producto por ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "description": "Consulta el detalle de un producto específico por `productoId`. Devuelve `ProductoResponse` con `imagenUrl`, `categoriaId`, `categoriaNombre`, `precio` y `stock`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "const p = pm.response.json();",
+                  "pm.test('Estructura JSON ProductoResponse completa', () => {",
+                  "  pm.expect(p).to.include.keys('id', 'nombre', 'descripcion', 'precio', 'stock', 'imagenUrl', 'activo', 'categoriaId', 'categoriaNombre');",
+                  "  pm.expect(p.id).to.eql(Number(pm.variables.get('productoId')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Producto inexistente - 404 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/99999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "99999999"
+              ]
+            },
+            "description": "Verifica que consultar un ID de producto inexistente devuelva 404 Not Found con mensaje de error."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test('Estructura JSON de error', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Categorías",
+      "description": "Gestión y consulta de categorías (`/api/categorias`). GET es público; POST, PUT y DELETE requieren rol `ADMINISTRADOR`.",
+      "item": [
+        {
+          "name": "GET Listar categorías (Público)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categorias"
+              ]
+            },
+            "description": "Lista todas las categorías ordenadas por nombre. Captura `categoriaId` si aún no está definido."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "const cats = pm.response.json();",
+                  "pm.test('Estructura JSON: arreglo de CategoriaResponse', () => {",
+                  "  pm.expect(cats).to.be.an('array');",
+                  "  if (cats.length > 0) {",
+                  "    pm.expect(cats[0]).to.include.keys('id', 'nombre', 'descripcion');",
+                  "    pm.collectionVariables.set('categoriaId', String(cats[0].id));",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Crear categoría (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Categoría Demo Postman\",\n  \"descripcion\": \"Categoría temporal creada para demostración en Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categorias"
+              ]
+            },
+            "description": "Crea una categoría nueva. Requiere JWT con rol `ADMINISTRADOR`.\n\nDatos requeridos (`CategoriaRequest`):\n- `nombre`: obligatorio, máx. 80 caracteres.\n- `descripcion`: opcional, máx. 255 caracteres."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const cat = pm.response.json();",
+                  "pm.test('Estructura CategoriaResponse válida', () => {",
+                  "  pm.expect(cat).to.include.keys('id', 'nombre', 'descripcion');",
+                  "  pm.expect(cat.id).to.be.a('number');",
+                  "});",
+                  "if (cat && cat.id) {",
+                  "  pm.collectionVariables.set('categoriaId', String(cat.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Actualizar categoría (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Categoría Demo Postman Editada\",\n  \"descripcion\": \"Descripción actualizada desde Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categorias/{{categoriaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            },
+            "description": "Actualiza el nombre y descripción de la categoría `{{categoriaId}}`. Requiere rol `ADMINISTRADOR`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const cat = pm.response.json();",
+                  "pm.test('Categoría actualizada correctamente', () => {",
+                  "  pm.expect(cat.id).to.eql(Number(pm.variables.get('categoriaId')));",
+                  "  pm.expect(cat.nombre).to.include('Editada');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE Eliminar categoría sin productos (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categorias/{{categoriaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            },
+            "description": "Elimina la categoría `{{categoriaId}}` si no tiene productos asociados (si tiene productos asociados, el backend responde 409 Conflict protegiendo la integridad)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 204 No Content (o 409 si tiene productos asociados)', () => pm.expect([204, 409]).to.include(pm.response.code));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Inventario",
+      "description": "Consulta de existencias y alertas de stock bajo (`/api/inventario` y `/api/inventario/bajo-stock`). Requiere rol `ADMINISTRADOR`.",
+      "item": [
+        {
+          "name": "GET Listar inventario completo (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/inventario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventario"
+              ]
+            },
+            "description": "Devuelve el inventario completo con `productoId`, `nombre`, `stock` y `stockBajo` (true cuando `stock <= 5`). Requiere rol `ADMINISTRADOR`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const inv = pm.response.json();",
+                  "pm.test('Estructura JSON InventarioResponse válida', () => {",
+                  "  pm.expect(inv).to.be.an('array');",
+                  "  if (inv.length > 0) {",
+                  "    pm.expect(inv[0]).to.include.keys('productoId', 'nombre', 'stock', 'stockBajo');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Listar alertas de stock bajo (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/inventario/bajo-stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventario",
+                "bajo-stock"
+              ]
+            },
+            "description": "Lista únicamente los productos cuyo stock es menor o igual a 5 unidades (`stockBajo = true`). Requiere rol `ADMINISTRADOR`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const bajo = pm.response.json();",
+                  "pm.test('Todos los elementos tienen stock <= 5 y stockBajo = true', () => {",
+                  "  pm.expect(bajo).to.be.an('array');",
+                  "  bajo.forEach(item => {",
+                  "    pm.expect(item.stock).to.be.at.most(5);",
+                  "    pm.expect(item.stockBajo).to.eql(true);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Inventario sin token - 401 (Prueba de seguridad)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/inventario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventario"
+              ]
+            },
+            "description": "Verifica que `/api/inventario` rechace solicitudes sin token JWT con 401 Unauthorized."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Carrito y compras (solo endpoints reales)",
+      "description": "Flujo real de validación previa al checkout (`GET /api/productos/{id}`) y registro de compra con pago simulado (`POST /api/pedidos`). El carrito vive en `localStorage` en el navegador y se envía al backend como `CrearPedidoRequest`.",
+      "item": [
+        {
+          "name": "GET Verificar stock y precio de producto antes de comprar",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "description": "Endpoint real utilizado por `CheckoutPage.tsx` para verificar que el producto del carrito sigue activo, tiene stock suficiente y obtener su precio oficial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "const p = pm.response.json();",
+                  "pm.test('Producto activo y con precio válido', () => {",
+                  "  pm.expect(p.activo).to.eql(true);",
+                  "  pm.expect(p.precio).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Crear pedido con pago simulado (Escritura)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Universitaria 1801, San Miguel, Lima\",\n  \"referencia\": \"Frente al campus universitario - Pago simulado\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            },
+            "description": "Registra un nuevo pedido asociado al usuario autenticado en el JWT, descuenta el stock en PostgreSQL y calcula `subtotal`, `envio` (S/ 10.00) y `total` (precios con IGV incluido).\n\nDatos requeridos (`CrearPedidoRequest`):\n- `direccion`: 5 a 255 caracteres.\n- `referencia`: opcional, máx. 255 caracteres.\n- `metodoPago`: `EFECTIVO`, `TARJETA` o `TRANSFERENCIA`.\n- `detalles`: lista no vacía de `{ productoId, cantidad >= 1 }`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiempo de respuesta menor a 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+                  "const ped = pm.response.json();",
+                  "pm.test('Creación de pedido con importes coherentes (envío S/ 10.00)', () => {",
+                  "  pm.expect(ped).to.include.keys('id', 'direccion', 'metodoPago', 'estado', 'subtotal', 'envio', 'total', 'fechaCreacion', 'detalles');",
+                  "  pm.expect(ped.estado).to.eql('PENDIENTE');",
+                  "  pm.expect(Number(ped.envio)).to.eql(10);",
+                  "  pm.expect(Number(ped.total)).to.be.closeTo(Number(ped.subtotal) + 10, 0.01);",
+                  "  pm.expect(ped.detalles).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "if (ped && ped.id) {",
+                  "  pm.collectionVariables.set('pedidoId', String(ped.id));",
+                  "  if (pm.environment && pm.environment.name) {",
+                  "    pm.environment.set('pedidoId', String(ped.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Crear pedido con stock insuficiente - 409 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"Av. Universitaria 1801, San Miguel\",\n  \"referencia\": \"Prueba de exceso de stock\",\n  \"metodoPago\": \"TARJETA\",\n  \"detalles\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 999999\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            },
+            "description": "Verifica que solicitar una cantidad mayor al stock disponible devuelva 409 Conflict y revierta la transacción sin alterar las existencias."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const err = pm.response.json();",
+                  "pm.test('Mensaje indica stock insuficiente', () => {",
+                  "  pm.expect(err).to.have.property('error');",
+                  "  pm.expect(err.error.toLowerCase()).to.include('stock insuficiente');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Crear pedido con datos inválidos - 400 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direccion\": \"\",\n  \"metodoPago\": \"EFECTIVO\",\n  \"detalles\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            },
+            "description": "Verifica que un pedido sin dirección válida ni detalles sea rechazado con 400 Bad Request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "const err = pm.response.json();",
+                  "pm.test('Errores de validación en direccion y detalles', () => {",
+                  "  pm.expect(err).to.include.keys('direccion', 'detalles');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Pedidos del cliente",
+      "description": "Consulta de pedidos propios del usuario autenticado (`GET /api/pedidos` y `GET /api/pedidos/{id}`). Solo lectura.",
+      "item": [
+        {
+          "name": "GET Listar mis pedidos",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            },
+            "description": "Devuelve únicamente los pedidos pertenecientes al usuario autenticado en el token JWT."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const pedidos = pm.response.json();",
+                  "pm.test('Estructura JSON: lista de PedidoResponse', () => {",
+                  "  pm.expect(pedidos).to.be.an('array');",
+                  "  if (pedidos.length > 0) {",
+                  "    pm.expect(pedidos[0]).to.include.keys('id', 'direccion', 'metodoPago', 'estado', 'subtotal', 'envio', 'total', 'detalles');",
+                  "    pm.collectionVariables.set('pedidoId', String(pedidos[0].id));",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Consultar detalle de mi pedido por ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pedidos/{{pedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pedidos",
+                "{{pedidoId}}"
+              ]
+            },
+            "description": "Obtiene el detalle de un pedido propio por `pedidoId`. Si el pedido pertenece a otro usuario o no tiene usuario asignado, responde 404 Not Found."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const p = pm.response.json();",
+                  "pm.test('Estructura PedidoResponse completa', () => {",
+                  "  pm.expect(p).to.include.keys('id', 'direccion', 'metodoPago', 'estado', 'subtotal', 'envio', 'total', 'detalles');",
+                  "  pm.expect(p.id).to.eql(Number(pm.variables.get('pedidoId')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Pedidos sin token - 401 (Prueba de seguridad)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            },
+            "description": "Verifica que `/api/pedidos` sin encabezado Authorization devuelva 401 Unauthorized."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Administración de pedidos",
+      "description": "Gestión administrativa de todos los pedidos (`/api/admin/pedidos`). Requiere token JWT con rol `ADMINISTRADOR`.",
+      "item": [
+        {
+          "name": "GET Listar todos los pedidos (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pedidos"
+              ]
+            },
+            "description": "Lista el resumen de todos los pedidos registrados en PostgreSQL (del más reciente al más antiguo). Opcionalmente admite `?estado=PENDIENTE`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const list = pm.response.json();",
+                  "pm.test('Estructura AdminPedidoResumenResponse válida', () => {",
+                  "  pm.expect(list).to.be.an('array');",
+                  "  if (list.length > 0) {",
+                  "    pm.expect(list[0]).to.include.keys('id', 'fechaCreacion', 'estado', 'metodoPago', 'direccion', 'cantidadProductos', 'total');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Filtrar pedidos por estado PENDIENTE (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/pedidos?estado=PENDIENTE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pedidos"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "PENDIENTE"
+                }
+              ]
+            },
+            "description": "Filtra los pedidos administrativos por estado (`PENDIENTE`, `CONFIRMADO`, `PREPARANDO`, `ENTREGADO`, `CANCELADO`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const list = pm.response.json();",
+                  "pm.test('Todos los pedidos devueltos están en estado PENDIENTE', () => {",
+                  "  pm.expect(list).to.be.an('array');",
+                  "  list.forEach(p => pm.expect(p.estado).to.eql('PENDIENTE'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Consultar detalle de pedido (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/pedidos/{{pedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pedidos",
+                "{{pedidoId}}"
+              ]
+            },
+            "description": "Consulta el detalle completo de cualquier pedido (`AdminPedidoDetalleResponse`), incluyendo `estadosPermitidos` según las reglas de transición."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const det = pm.response.json();",
+                  "pm.test('Estructura AdminPedidoDetalleResponse con estadosPermitidos', () => {",
+                  "  pm.expect(det).to.include.keys('id', 'estado', 'estadosPermitidos', 'direccion', 'metodoPago', 'subtotal', 'envio', 'total', 'detalles');",
+                  "  pm.expect(det.estadosPermitidos).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Actualizar estado de pedido a CONFIRMADO (Admin - Escritura)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"CONFIRMADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/pedidos/{{pedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pedidos",
+                "{{pedidoId}}",
+                "estado"
+              ]
+            },
+            "description": "Actualiza el estado del pedido `{{pedidoId}}` respetando las transiciones (`PENDIENTE` -> `CONFIRMADO` -> `PREPARANDO` -> `ENTREGADO`, o `CANCELADO` antes de entregar).\n\nDatos requeridos (`ActualizarEstadoPedidoRequest`):\n- `estado`: nuevo estado en texto."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const det = pm.response.json();",
+                  "pm.test('Estado actualizado a CONFIRMADO', () => {",
+                  "  pm.expect(det.id).to.eql(Number(pm.variables.get('pedidoId')));",
+                  "  pm.expect(det.estado).to.eql('CONFIRMADO');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Estado inexistente - 400 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ESTADO_INVALIDO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/pedidos/{{pedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pedidos",
+                "{{pedidoId}}",
+                "estado"
+              ]
+            },
+            "description": "Verifica que un nombre de estado inexistente responda con 400 Bad Request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test('Incluye mensaje de error', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Acceso a /admin/pedidos con rol CLIENTE - 403 (Prueba de permisos)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pedidos"
+              ]
+            },
+            "description": "Ejecutar después de `POST Login y captura de JWT`: usa el token capturado para CLIENTE y verifica que Spring Security devuelva 403 Forbidden."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 403 Forbidden para CLIENTE', () => pm.response.to.have.status(403));",
+                  "pm.test('Error JSON comprensible', () => pm.expect(pm.response.json().error).to.exist);",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "9. Administración de productos e inventario",
+      "description": "Creación, edición, desactivación y actualización de stock de productos (`/api/productos/**`). Requiere token JWT con rol `ADMINISTRADOR`.",
+      "item": [
+        {
+          "name": "GET Listar todos los productos incluyendo inactivos (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos?incluirInactivos=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Consulta todos los productos (activos e inactivos) tal como lo hace el panel de administración."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "pm.test('Devuelve lista de productos', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Crear producto (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Café Gourmet Shop Menoss 250g\",\n  \"descripcion\": \"Café molido seleccionado para demostración universitaria\",\n  \"precio\": 18.50,\n  \"stock\": 15,\n  \"imagenUrl\": \"/images/products/placeholder.png\",\n  \"activo\": true,\n  \"categoriaId\": {{categoriaId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            },
+            "description": "Crea un nuevo producto en PostgreSQL y guarda su ID en `productoId`. Requiere rol `ADMINISTRADOR`.\n\nDatos requeridos (`ProductoRequest`):\n- `nombre`: obligatorio, máx. 150 caracteres.\n- `descripcion`: opcional, máx. 500 caracteres.\n- `precio`: obligatorio, >= 0.01 (hasta 2 decimales).\n- `stock`: >= 0.\n- `imagenUrl`: opcional, máx. 500 caracteres.\n- `activo`: booleano.\n- `categoriaId`: obligatorio, ID de categoría existente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const prod = pm.response.json();",
+                  "pm.test('Creación de producto con estructura ProductoResponse', () => {",
+                  "  pm.expect(prod).to.include.keys('id', 'nombre', 'precio', 'stock', 'imagenUrl', 'activo', 'categoriaId', 'categoriaNombre');",
+                  "  pm.expect(prod.activo).to.eql(true);",
+                  "});",
+                  "if (prod && prod.id) {",
+                  "  pm.collectionVariables.set('productoId', String(prod.id));",
+                  "  pm.collectionVariables.set('stockOriginal', String(prod.stock));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Actualizar producto (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Café Gourmet Shop Menoss 250g\",\n  \"descripcion\": \"Café molido seleccionado - Edición actualizada\",\n  \"precio\": 19.90,\n  \"stock\": 15,\n  \"imagenUrl\": \"/images/products/placeholder.png\",\n  \"activo\": true,\n  \"categoriaId\": {{categoriaId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "description": "Actualiza los datos del producto `{{productoId}}`. Requiere rol `ADMINISTRADOR`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const prod = pm.response.json();",
+                  "pm.test('Producto actualizado correctamente', () => {",
+                  "  pm.expect(prod.id).to.eql(Number(pm.variables.get('productoId')));",
+                  "  pm.expect(Number(prod.precio)).to.eql(19.90);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Actualizar stock de producto (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Actualiza las existencias del producto `{{productoId}}` con bloqueo pesimista.\n\nDatos requeridos (`ActualizarStockRequest`):\n- `stock`: entero >= 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));",
+                  "const inv = pm.response.json();",
+                  "pm.test('Estructura InventarioResponse con stock actualizado', () => {",
+                  "  pm.expect(inv).to.include.keys('productoId', 'nombre', 'stock', 'stockBajo');",
+                  "  pm.expect(inv.stock).to.eql(20);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Stock negativo inválido - 400 (Solo lectura)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": -5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "{{productoId}}",
+                "stock"
+              ]
+            },
+            "description": "Verifica que un stock negativo sea rechazado con 400 Bad Request sin modificar la base de datos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Tiempo de respuesta menor a 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test('Error en campo stock', () => pm.expect(pm.response.json()).to.have.property('stock'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE Desactivar producto (Admin - Escritura controlada)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwtToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "description": "Realiza el borrado lógico (`activo = false`) del producto `{{productoId}}`, conservando la integridad referencial con pedidos históricos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código HTTP 204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.test('Tiempo de respuesta menor a 2500 ms', () => pm.expect(pm.response.responseTime).to.be.below(2500));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

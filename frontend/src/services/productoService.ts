@@ -1,34 +1,88 @@
+import api from './api';
 import type { Producto } from '../types/producto';
+import {
+  aCuerpoApi,
+  aProducto,
+  type ProductoAdmin,
+  type ProductoAPI,
+  type ProductoInput,
+} from './productoMapper';
 
-// TODO backend: reemplazar por llamadas a api.get('/productos'), etc.
-let productos: Producto[] = [
-  { id: 1, nombre: 'Arroz Costeño 5kg', descripcion: 'Arroz extra superior', precio: 24.9, stock: 40, imagen: '', categoria: 'Abarrotes' },
-  { id: 2, nombre: 'Aceite Primor 1L', descripcion: 'Aceite vegetal', precio: 11.5, stock: 8, imagen: '', categoria: 'Abarrotes' },
-  { id: 3, nombre: 'Inca Kola 1.5L', descripcion: 'Gaseosa sabor original', precio: 7.5, stock: 60, imagen: '', categoria: 'Bebidas' },
-  { id: 4, nombre: 'Leche Gloria 400g', descripcion: 'Leche evaporada entera', precio: 4.2, stock: 5, imagen: '', categoria: 'Lácteos' },
-];
-let siguienteId = 5;
+export type { ProductoAdmin, ProductoInput } from './productoMapper';
+export { aInput } from './productoMapper';
 
-export async function listarProductos(): Promise<Producto[]> {
-  return [...productos];
+const IMAGEN_POR_DEFECTO = '/images/products/placeholder.png';
+
+function mapearProductoCatalogo(
+  producto: ProductoAPI
+): Producto {
+  return {
+    id: producto.id,
+    nombre: producto.nombre,
+    descripcion: producto.descripcion ?? '',
+    precio: producto.precio,
+    stock: producto.stock,
+    imagen: producto.imagenUrl || IMAGEN_POR_DEFECTO,
+    categoria: producto.categoriaNombre,
+  };
 }
 
-export async function crearProducto(data: Omit<Producto, 'id'>): Promise<Producto> {
-  const nuevo: Producto = { id: siguienteId++, ...data };
-  productos = [...productos, nuevo];
-  return nuevo;
+// GET /api/productos es público. El parámetro incluirInactivos
+// solo debe usarlo la administración.
+export async function listarProductos(
+  incluirInactivos = true
+): Promise<ProductoAdmin[]> {
+  const { data } = await api.get<ProductoAPI[]>('/productos', {
+    params: { incluirInactivos },
+  });
+
+  return data.map(aProducto);
 }
 
-export async function actualizarProducto(id: number, data: Omit<Producto, 'id'>): Promise<void> {
-  productos = productos.map((p) => (p.id === id ? { id, ...data } : p));
+export async function listarProductosCatalogo(): Promise<Producto[]> {
+  const { data } = await api.get<ProductoAPI[]>('/productos', {
+    params: { incluirInactivos: false },
+  });
+
+  return data.map(mapearProductoCatalogo);
 }
 
-export async function eliminarProducto(id: number): Promise<void> {
-  productos = productos.filter((p) => p.id !== id);
-}
-
-export async function ajustarStock(id: number, delta: number): Promise<void> {
-  productos = productos.map((p) =>
-    p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p
+export async function crearProducto(
+  producto: ProductoInput
+): Promise<ProductoAdmin> {
+  const { data } = await api.post<ProductoAPI>(
+    '/productos',
+    aCuerpoApi(producto)
   );
+
+  return aProducto(data);
+}
+
+export async function actualizarProducto(
+  id: number,
+  producto: ProductoInput
+): Promise<ProductoAdmin> {
+  const { data } = await api.put<ProductoAPI>(
+    `/productos/${id}`,
+    aCuerpoApi(producto)
+  );
+
+  return aProducto(data);
+}
+
+// Baja lógica: el backend marca el producto como inactivo
+// y conserva el historial.
+export async function eliminarProducto(id: number): Promise<void> {
+  await api.delete(`/productos/${id}`);
+}
+
+export async function ajustarStock(
+  id: number,
+  delta: number
+): Promise<void> {
+  const { data } = await api.get<ProductoAPI>(`/productos/${id}`);
+
+  await api.put(`/productos/${id}/stock`, {
+    stock: Math.max(0, data.stock + delta),
+  });
 }

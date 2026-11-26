@@ -62,7 +62,7 @@ function Pedidos() {
         <div className="alert alert-info text-center">Cargando pedidos...</div>
       ) : error ? (
         <div className="alert alert-danger text-center">
-          No se pudieron cargar los pedidos.
+          No se pudieron cargar los pedidos. Inicia sesión y vuelve a intentar. <button onClick={()=>window.location.reload()}>Reintentar</button>
         </div>
       ) : listaPedidos.length > 0 && (
         <div className="d-flex align-items-center gap-2 mb-3">
@@ -89,11 +89,11 @@ function Pedidos() {
         <div className="alert alert-info text-center">
           Aún no tienes pedidos registrados.
         </div>
-      ) : pedidosFiltrados.length === 0 ? (
+      ) : !cargando && !error && pedidosFiltrados.length === 0 ? (
         <div className="alert alert-light border text-center">
           No tienes pedidos con estado “{ESTADO_LABELS[filtro as EstadoPedido]}”.
         </div>
-      ) : (
+      ) : !cargando && !error ? (
         <div className="row g-3">
           {pedidosFiltrados.map((pedido) => {
             const cantidadProductos = pedido.detalles.reduce(
@@ -120,6 +120,20 @@ function Pedidos() {
                     <p className="card-text small mb-1">
                       <strong>Pago:</strong> {METODO_PAGO_LABELS[pedido.metodoPago]}
                     </p>
+                    <p className="card-text small mb-1">
+                      <strong>Entrega:</strong> {pedido.direccion}
+                    </p>
+                    {pedido.referencia && (
+                      <p className="card-text text-muted small mb-1">
+                        <strong>Referencia:</strong> {pedido.referencia}
+                      </p>
+                    )}
+                    <p className="card-text small mb-1">
+                      <strong>Subtotal:</strong> {formatPrecio(pedido.subtotal)}
+                    </p>
+                    <p className="card-text small mb-1">
+                      <strong>Envío:</strong> {formatPrecio(pedido.envio)}
+                    </p>
                     <p className="card-text mb-3">
                       <strong>Total:</strong> {formatPrecio(pedido.total)}
                     </p>
@@ -136,7 +150,7 @@ function Pedidos() {
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
