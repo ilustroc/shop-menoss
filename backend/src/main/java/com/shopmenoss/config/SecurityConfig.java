@@ -35,11 +35,13 @@ public class SecurityConfig {
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, exception) -> {
                     response.setStatus(401);
+                    response.setCharacterEncoding("UTF-8");
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.getWriter().write("{\"error\":\"Autenticación requerida o sesión no válida\"}");
                 })
                 .accessDeniedHandler((request, response, exception) -> {
                     response.setStatus(403);
+                    response.setCharacterEncoding("UTF-8");
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.getWriter().write("{\"error\":\"Acceso denegado\"}");
                 })
